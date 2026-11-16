@@ -1,0 +1,17 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+
+# Datenschutz: echte Projektdateien bleiben lokal (OneDrive), nur die fiktive Beispieldatei ist im Repository.
+data/*.objekt.json
+!data/beispiel.objekt.json
+data/alt/
+*.objekt.json
+!data/beispiel.objekt.json
+# Exporte und Fotos gehören nie ins Repository
+Aufnahme_*.zip
+
+# Übergaben enthalten echte Projektdaten (Adresse, Termine) und bleiben lokal
+UEBERGABE*.md
+.claude/

@@ -1,0 +1,753 @@
+/* Hoher Kontrast, dunkel (Keller), große Schaltflächen (mind. 48 px). */
+:root {
+  --bg: #0f1512;
+  --flaeche: #18211c;
+  --flaeche2: #222e27;
+  --rand: #34453b;
+  --text: #f1f6ef;
+  --text2: #b9c7b4;
+  --gruen: #7fd36b;
+  --gruen-dunkel: #2f6b25;
+  --gelb: #ffd24a;
+  --orange: #ff9f43;
+  --rot: #ff6b6b;
+  --blau: #6cb8ff;
+  --radius: 12px;
+  --tap: 52px;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 18px/1.4 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  touch-action: manipulation;
+}
+
+h2 {
+  font-size: 22px;
+  margin: 28px 0 12px;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+h3 {
+  font-size: 19px;
+  margin: 0 0 10px;
+}
+
+.laden {
+  padding: 40px;
+  text-align: center;
+}
+
+/* ---------- Kopfzeile ---------- */
+.kopf {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: calc(8px + env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left));
+  background: #0a0f0c;
+  border-bottom: 2px solid var(--rand);
+}
+
+.marke {
+  font-weight: 800;
+  color: var(--gruen);
+  padding: 0 6px;
+  white-space: nowrap;
+}
+
+.kopf-zurueck,
+.kopf-knopf {
+  min-height: var(--tap);
+  min-width: var(--tap);
+  padding: 0 16px;
+  border-radius: var(--radius);
+  border: 2px solid var(--rand);
+  background: var(--flaeche2);
+  font-weight: 700;
+  font-size: 20px;
+}
+
+.kopf-titel {
+  flex: 1;
+  min-width: 0;
+}
+
+.kopf-haupt {
+  font-weight: 800;
+  font-size: 20px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kopf-unter {
+  color: var(--text2);
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kopf-status {
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 22px;
+  border: 2px solid;
+  background: transparent;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.kopf-status.warn {
+  color: var(--gelb);
+  border-color: var(--gelb);
+}
+
+.kopf-status.ok {
+  color: var(--gruen);
+  border-color: var(--gruen-dunkel);
+}
+
+.kopf-fehler {
+  flex-basis: 100%;
+  background: var(--rot);
+  color: #000;
+  font-weight: 700;
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+/* ---------- Inhalt ---------- */
+.inhalt {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 12px max(14px, env(safe-area-inset-right)) 80px max(14px, env(safe-area-inset-left));
+}
+
+.liste {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.karte {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: var(--flaeche);
+  border: 2px solid var(--rand);
+  border-left-width: 8px;
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  min-height: var(--tap);
+}
+
+.karte-klick {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  min-height: 44px;
+}
+
+.karte-kopf {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.karte-zeit {
+  font-weight: 800;
+  font-size: 20px;
+  color: var(--blau);
+  min-width: 60px;
+}
+
+.karte-titel {
+  flex: 1;
+  font-weight: 800;
+  font-size: 19px;
+}
+
+.karte-zeile {
+  color: var(--text2);
+  font-size: 16px;
+  margin-top: 4px;
+}
+
+.karte-export {
+  margin-top: 6px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.karte-export.warn,
+.warn-text {
+  color: var(--gelb);
+}
+
+.karte-export.ok,
+.ok-text {
+  color: var(--gruen);
+}
+
+.hinweis-text {
+  color: var(--orange);
+}
+
+.ersatz {
+  color: var(--orange);
+}
+
+.karte.status-offen {
+  border-left-color: #6b7a70;
+}
+
+.karte.status-in_arbeit {
+  border-left-color: var(--gelb);
+}
+
+.karte.status-fertig {
+  border-left-color: var(--gruen);
+}
+
+.karte.status-nicht_angetroffen {
+  border-left-color: var(--rot);
+}
+
+.karte.unexportiert {
+  box-shadow: inset 0 0 0 2px rgba(255, 210, 74, 0.5);
+}
+
+.karte.hf.unvollstaendig {
+  border-left-color: var(--orange);
+}
+
+.status-chip {
+  font-size: 14px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 14px;
+  background: var(--flaeche2);
+  white-space: nowrap;
+}
+
+.status-chip.status-in_arbeit {
+  color: #000;
+  background: var(--gelb);
+}
+
+.status-chip.status-fertig {
+  color: #000;
+  background: var(--gruen);
+}
+
+.status-chip.status-nicht_angetroffen {
+  color: #000;
+  background: var(--rot);
+}
+
+.tag-titel {
+  border-bottom: 2px solid var(--rand);
+  padding-bottom: 6px;
+}
+
+.tag-zaehler {
+  font-size: 16px;
+  color: var(--text2);
+  font-weight: 600;
+}
+
+/* ---------- Raumliste ---------- */
+.raumzeile {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+  min-height: 64px;
+  padding: 10px 14px;
+  background: var(--flaeche);
+  border: 2px solid var(--rand);
+  border-radius: var(--radius);
+}
+
+.raumzeile.erledigt {
+  border-color: var(--gruen-dunkel);
+}
+
+.raumzeile.weg {
+  opacity: 0.6;
+}
+
+.raum-haken {
+  font-size: 28px;
+  width: 32px;
+  text-align: center;
+  color: var(--text2);
+}
+
+.raumzeile.erledigt .raum-haken {
+  color: var(--gruen);
+}
+
+.raum-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.raum-name {
+  font-weight: 800;
+}
+
+.raum-info {
+  color: var(--text2);
+  font-size: 16px;
+}
+
+.raum-zahlen {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.marke-klein {
+  font-size: 13px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--flaeche2);
+  color: var(--blau);
+  font-weight: 700;
+}
+
+.marke-klein.warn {
+  color: var(--orange);
+}
+
+/* ---------- Felder ---------- */
+.block {
+  background: var(--flaeche);
+  border: 2px solid var(--rand);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin: 14px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.block.erfasst {
+  border-color: var(--gruen-dunkel);
+}
+
+.block-kopf {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.feld {
+  margin: 16px 0;
+}
+
+.block .feld {
+  margin: 4px 0;
+}
+
+.feld-titel {
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.feld-hinweis {
+  color: var(--text2);
+  font-size: 15px;
+  margin-top: 6px;
+}
+
+.pflicht {
+  color: var(--orange);
+  font-weight: 600;
+}
+
+.zaehler {
+  color: var(--gruen);
+}
+
+.tasten {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.taste {
+  min-height: var(--tap);
+  min-width: 64px;
+  padding: 0 16px;
+  border-radius: var(--radius);
+  border: 2px solid var(--rand);
+  background: var(--flaeche2);
+  font-weight: 700;
+}
+
+.taste.aktiv {
+  background: var(--gruen);
+  border-color: var(--gruen);
+  color: #06110a;
+}
+
+.taste.aktiv.geschaetzt {
+  background: var(--orange);
+  border-color: var(--orange);
+}
+
+.taste.klein,
+.tasten.klein .taste {
+  min-height: 48px;
+  font-size: 16px;
+}
+
+.taste:disabled {
+  opacity: 0.35;
+}
+
+.eingabe {
+  width: 100%;
+  min-height: var(--tap);
+  padding: 10px 14px;
+  font: inherit;
+  font-size: 20px;
+  color: var(--text);
+  background: #0a0f0c;
+  border: 2px solid var(--rand);
+  border-radius: var(--radius);
+}
+
+textarea.eingabe {
+  resize: vertical;
+}
+
+.eingabe:focus {
+  outline: none;
+  border-color: var(--blau);
+}
+
+.zahl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 140px;
+}
+
+.zahl .eingabe {
+  font-weight: 800;
+  font-size: 24px;
+}
+
+.zahl-einheit {
+  color: var(--text2);
+  font-weight: 700;
+}
+
+.messfeld {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.messfeld.ist-geschaetzt .eingabe {
+  border-color: var(--orange);
+  color: var(--orange);
+}
+
+.status-schalter {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.messfeld .status-schalter {
+  margin-top: 0;
+}
+
+.reihe {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.mal {
+  font-size: 24px;
+  color: var(--text2);
+}
+
+/* ---------- Knöpfe ---------- */
+.knopf {
+  min-height: var(--tap);
+  padding: 0 20px;
+  border-radius: var(--radius);
+  border: 2px solid var(--rand);
+  background: var(--flaeche2);
+  font-weight: 800;
+}
+
+.knopf.gross {
+  display: block;
+  width: 100%;
+  min-height: 64px;
+  font-size: 20px;
+  margin: 10px 0;
+}
+
+.knopf.primaer {
+  background: var(--gruen);
+  border-color: var(--gruen);
+  color: #06110a;
+}
+
+.knopf.gefahr {
+  border-color: var(--rot);
+  color: var(--rot);
+  background: transparent;
+}
+
+.knopf.klein {
+  min-height: 44px;
+  font-size: 16px;
+}
+
+.knopf:disabled {
+  opacity: 0.5;
+}
+
+.knopfreihe {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 16px 0;
+}
+
+.knopfreihe .knopf {
+  flex: 1;
+}
+
+.knopfspalte {
+  margin: 20px 0;
+}
+
+/* ---------- Fotos ---------- */
+.fotoleiste {
+  margin: 14px 0;
+  padding: 12px;
+  border-radius: var(--radius);
+  border: 2px solid var(--rand);
+  background: var(--flaeche);
+}
+
+.fotoleiste.fehlt {
+  border-color: var(--orange);
+}
+
+.fotoreihe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.thumb {
+  width: 96px;
+  height: 96px;
+  padding: 0;
+  border-radius: 10px;
+  border: 2px solid var(--rand);
+  overflow: hidden;
+  background: #000;
+}
+
+.thumb.neu {
+  border-color: var(--gelb);
+}
+
+.thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.foto-knopf {
+  min-height: 96px;
+  min-width: 140px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 2px dashed var(--gruen);
+  background: var(--flaeche2);
+  color: var(--gruen);
+  font-weight: 800;
+  font-size: 18px;
+}
+
+.viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+}
+
+.viewer-leiste {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: calc(10px + env(safe-area-inset-top)) 12px 10px;
+  background: #111;
+}
+
+.viewer-name {
+  flex: 1;
+  font-size: 14px;
+  word-break: break-all;
+  color: var(--text2);
+}
+
+.viewer-bild {
+  flex: 1;
+  min-height: 0;
+  object-fit: contain;
+  width: 100%;
+}
+
+.viewer-laden {
+  margin: auto;
+}
+
+/* ---------- Hinweise ---------- */
+.hinweis {
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  margin: 12px 0;
+  border: 2px solid var(--blau);
+  background: rgba(108, 184, 255, 0.08);
+}
+
+.hinweis.warn {
+  border-color: var(--gelb);
+  background: rgba(255, 210, 74, 0.1);
+}
+
+.hinweis.fehler,
+.fehler {
+  border-color: var(--rot);
+  background: rgba(255, 107, 107, 0.12);
+  color: #ffd6d6;
+}
+
+.fehler {
+  padding: 8px;
+  border-radius: 8px;
+  margin-top: 8px;
+}
+
+/* ---------- Tabelle ---------- */
+.tabelle {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tabellenzeile {
+  display: grid;
+  grid-template-columns: 1fr auto 150px;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--flaeche);
+  border-radius: 8px;
+  font-size: 16px;
+}
+
+.tabellenzeile.warn {
+  color: var(--gelb);
+}
+
+@media (max-width: 600px) {
+  .tabellenzeile {
+    grid-template-columns: 1fr auto;
+  }
+  .tabellenzeile span:last-child {
+    grid-column: 1 / -1;
+    color: var(--text2);
+  }
+}
+
+/* ---- Hinweis zur Einheit (aus der Projektdatei), gut sichtbar oben ---- */
+.einheit-hinweis {
+  border: 2px solid var(--gelb);
+  background: rgba(255, 210, 74, 0.12);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin: 0 0 16px;
+  font-size: 1.05rem;
+  line-height: 1.4;
+}
+.einheit-hinweis-titel {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--gelb);
+  margin-bottom: 4px;
+}
+.gewerbe-kopf {
+  border: 2px solid var(--blau);
+}
+/* Quelle der Plandaten, klein unter dem Raumnamen */
+.raum-quelle {
+  display: block;
+  font-size: 13px;
+  color: var(--text2);
+  line-height: 1.3;
+  margin: 2px 0;
+}
+.raum-plan {
+  margin: 0 0 14px;
+  font-size: 0.95rem;
+}
+.karte-dauer {
+  font-weight: 400;
+  opacity: 0.7;
+  font-size: 0.85em;
+}

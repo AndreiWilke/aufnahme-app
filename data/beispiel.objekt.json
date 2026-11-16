@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "projekt": {
+    "id": "beispiel",
+    "name": "Beispielprojekt Musterstraße 1 (Testdaten)",
+    "adresse": "Musterstraße 1, 12345 Musterstadt",
+    "auftrag": "Testauftrag",
+    "verwaltung": "Muster Hausverwaltung",
+    "bearbeiter": "Green Aktiv Energieberatung",
+    "stand": "2026-11-16",
+    "hinweis": "Fiktive Testdaten zum Ausprobieren. Solltemperaturen sind Beispielwerte."
+  },
+  "nutzungsarten": [
+    { "key": "wohnen", "name": "Wohnraum", "soll_temp_c": 20 },
+    { "key": "schlafen", "name": "Schlafraum", "soll_temp_c": 20 },
+    { "key": "kind", "name": "Kinderzimmer", "soll_temp_c": 20 },
+    { "key": "kueche", "name": "Küche", "soll_temp_c": 20 },
+    { "key": "bad", "name": "Bad", "soll_temp_c": 24 },
+    { "key": "wc", "name": "WC", "soll_temp_c": 20 },
+    { "key": "diele", "name": "Diele/Flur", "soll_temp_c": 20 },
+    { "key": "abstell", "name": "Abstellraum", "soll_temp_c": 15 },
+    { "key": "buero", "name": "Büro/Praxis", "soll_temp_c": 20 },
+    { "key": "verkauf", "name": "Verkaufsraum", "soll_temp_c": 20 },
+    { "key": "lager", "name": "Lager", "soll_temp_c": 15 },
+    { "key": "treppenhaus", "name": "Treppenhaus", "soll_temp_c": 10 },
+    { "key": "sonstig", "name": "Sonstiges", "soll_temp_c": 20 },
+    { "key": "behandlung", "name": "Behandlung/Untersuchung", "soll_temp_c": 24 },
+    { "key": "warte", "name": "Warte-/Empfangsraum", "soll_temp_c": 20 },
+    { "key": "gastraum", "name": "Gastraum", "soll_temp_c": 20 },
+    { "key": "gruppenraum", "name": "Gruppenraum Kita", "soll_temp_c": 20 },
+    { "key": "technik", "name": "Technik/Lüftung", "soll_temp_c": null }
+  ],
+  "einheiten": [
+    {
+      "id": "HZ", "eh": null, "eh_zusatz": [], "art": "Heizzentrale", "bezeichnung": "Heizzentrale (Keller)",
+      "geschoss": null, "wohnungstyp": null, "ersatz": [], "termin": "2026-12-04T08:30", "dauer_min": 30,
+      "raeume": []
+    },
+    {
+      "id": "ALLG", "eh": null, "eh_zusatz": [], "art": "Allgemein", "bezeichnung": "Allgemeinflächen",
+      "geschoss": null, "wohnungstyp": null, "ersatz": [], "termin": "2026-12-04T08:30", "dauer_min": 0,
+      "hinweis": "Beheizung der Nebenräume vor Ort prüfen.",
+      "raeume": [
+        { "id": "ALLG-R01", "nr": "01", "name": "Treppenhaus 1", "nutzung": "treppenhaus", "flaeche_plan_m2": null, "soll_temp_c": 10, "quelle": "Beispielplan, vor Ort prüfen" }
+      ]
+    },
+    {
+      "id": "EH001", "eh": 1, "eh_zusatz": [], "art": "Gewerbe", "bezeichnung": "Laden 1 (Bäckerei)",
+      "geschoss": "EG", "wohnungstyp": null, "ersatz": [], "termin": "2026-12-04T10:00", "dauer_min": 20,
+      "raeume": [
+        { "id": "EH001-R01", "nr": "01", "name": "Verkauf", "nutzung": "verkauf", "flaeche_plan_m2": 48.2, "soll_temp_c": 20, "quelle": "Beispielplan" },
+        { "id": "EH001-R02", "nr": "02", "name": "Lager", "nutzung": "lager", "flaeche_plan_m2": 12.5, "soll_temp_c": 15, "quelle": "Beispielplan" },
+        { "id": "EH001-R03", "nr": "03", "name": "WC", "nutzung": "wc", "flaeche_plan_m2": null, "soll_temp_c": 20, "quelle": "Beispielplan, Fläche nicht lesbar" }
+      ]
+    },
+    {
+      "id": "EH002", "eh": 2, "eh_zusatz": [102], "art": "Gewerbe", "bezeichnung": "Praxis (EH 2 und 102)",
+      "geschoss": "EG", "wohnungstyp": null, "ersatz": [], "termin": "2026-12-04T10:30", "dauer_min": 15,
+      "hinweis": "Grundriss alt, Umbauten wahrscheinlich. Räume vor Ort abgleichen.",
+      "raeume": [
+        { "id": "EH002-R01", "nr": "01", "name": "Empfang", "nutzung": "warte", "flaeche_plan_m2": 14.0, "soll_temp_c": 20, "quelle": "Beispielplan" },
+        { "id": "EH002-R02", "nr": "02", "name": "Behandlung 1", "nutzung": "behandlung", "flaeche_plan_m2": 16.3, "soll_temp_c": 24, "quelle": "Beispielplan" },
+        { "id": "EH002-R03", "nr": "03", "name": "Lüftungszentrale", "nutzung": "technik", "flaeche_plan_m2": null, "soll_temp_c": null, "quelle": "Beispielplan" }
+      ]
+    },
+    {
+      "id": "EH013", "eh": 13, "eh_zusatz": [], "art": "Wohnung", "bezeichnung": "Whg. 213",
+      "geschoss": "2. OG", "wohnungstyp": 1, "termin": "2026-12-05T10:00", "dauer_min": 15,
+      "ersatz": [
+        { "eh": 14, "bezeichnung": "Whg. 214", "geschoss": "2. OG" },
+        { "eh": 23, "bezeichnung": "Whg. 313", "geschoss": "3. OG" }
+      ],
+      "hinweis": "Räume gelten auch für die Ersatzwohnungen (gleich oder gespiegelt). Balkon nicht aufgenommen.",
+      "raeume": [
+        { "id": "EH013-R01", "nr": "01", "name": "Diele", "nutzung": "diele", "flaeche_plan_m2": 7.9, "soll_temp_c": 20, "quelle": "Beispielplan" },
+        { "id": "EH013-R02", "nr": "02", "name": "Küche", "nutzung": "kueche", "flaeche_plan_m2": 9.6, "soll_temp_c": 20, "quelle": "Beispielplan" },
+        { "id": "EH013-R03", "nr": "03", "name": "Wohnraum", "nutzung": "wohnen", "flaeche_plan_m2": 31.4, "soll_temp_c": 20, "quelle": "Beispielplan" },
+        { "id": "EH013-R04", "nr": "04", "name": "Schlafen", "nutzung": "schlafen", "flaeche_plan_m2": 14.2, "soll_temp_c": 20, "quelle": "Beispielplan" },
+        { "id": "EH013-R05", "nr": "05", "name": "Kind", "nutzung": "kind", "flaeche_plan_m2": 11.8, "soll_temp_c": 20, "quelle": "Beispielplan" },
+        { "id": "EH013-R06", "nr": "06", "name": "Bad", "nutzung": "bad", "flaeche_plan_m2": 6.1, "soll_temp_c": 24, "quelle": "Beispielplan" }
+      ]
+    },
+    {
+      "id": "EH020", "eh": 20, "eh_zusatz": [], "art": "Wohnung", "bezeichnung": "Whg. 302",
+      "geschoss": "3. OG", "wohnungstyp": 2, "termin": "2026-12-05T10:20", "dauer_min": 15,
+      "ersatz": [ { "eh": 21, "bezeichnung": "Whg. 303", "geschoss": "3. OG" } ],
+      "raeume": [
+        { "id": "EH020-R01", "nr": "01", "name": "Wohnraum", "nutzung": "wohnen", "flaeche_plan_m2": 24.5, "soll_temp_c": 20, "quelle": "Beispielplan" },
+        { "id": "EH020-R02", "nr": "02", "name": "Bad", "nutzung": "bad", "flaeche_plan_m2": 4.8, "soll_temp_c": 24, "quelle": "Beispielplan" }
+      ]
+    }
+  ]
+}
