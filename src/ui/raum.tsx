@@ -81,21 +81,13 @@ export function raumFertig(eid: string, rid: string) {
 
 export function hfKurztext(h: Heizflaeche): string {
   const teile: string[] = [];
-  teile.push(h.art ? ART_TEXT[h.art] : 'Art fehlt');
+  teile.push(h.art ? ART_TEXT[h.art] : 'Heizfläche');
   if (h.art === 'platte' && h.typ) teile.push(`Typ ${h.typ}`);
   const m = (w: { wert: number | null; status: string | null }) =>
     w.wert === null ? '?' : `${w.wert}${w.status === 'geschätzt' ? '~' : ''}`;
   if (h.art !== 'fussbodenheizung') teile.push(`${m(h.bauhoehe_mm)} × ${m(h.baulaenge_mm)} mm`);
   if ((h.art === 'glieder' || h.art === 'roehren') && h.gliederzahl) teile.push(`${h.gliederzahl} Gl.`);
   return teile.join(' · ');
-}
-
-export function hfFehlt(eid: string, h: Heizflaeche): string[] {
-  const f: string[] = [];
-  if (fotosVon(eid, h.hf_id, 'Front').length === 0) f.push('Foto Front');
-  if (h.art !== 'fussbodenheizung' && fotosVon(eid, h.hf_id, 'Ventil').length === 0) f.push('Foto Ventil');
-  if (!h.art) f.push('Art');
-  return f;
 }
 
 function FensterBlock(props: { a: EinheitAufnahme; r: Raum; f: Fenster; index: number }) {
@@ -137,7 +129,7 @@ function FensterBlock(props: { a: EinheitAufnahme; r: Raum; f: Fenster; index: n
       <Feld titel="Rahmen">
         <Tasten werte={Object.keys(RAHMEN_TEXT) as (keyof typeof RAHMEN_TEXT)[]} wert={f.rahmen} text={(w) => RAHMEN_TEXT[w]} onWahl={(w) => set((x) => (x.rahmen = w))} />
       </Feld>
-      <Feld titel="Breite × Höhe (optional)">
+      <Feld titel="Breite × Höhe">
         <div class="reihe">
           <ZahlFeld wert={f.breite_mm} ganzzahl einheit="mm" platzhalter="Breite" onAendern={(n) => set((x) => { x.breite_mm = n; if (!x.masse_status) x.masse_status = 'gemessen'; if (x.breite_mm === null && x.hoehe_mm === null) x.masse_status = null; })} />
           <span class="mal">×</span>
@@ -146,7 +138,7 @@ function FensterBlock(props: { a: EinheitAufnahme; r: Raum; f: Fenster; index: n
         <StatusSchalter status={f.masse_status} aktiv={masse} onWahl={(s) => set((x) => (x.masse_status = s))} />
       </Feld>
       <FotoLeiste
-        titel="Foto Fenster (optional)"
+        titel="Foto Fenster"
         fotos={fotosVon(a.einheit_id, f.fenster_id)}
         ziel={{
           eid: a.einheit_id,
@@ -196,15 +188,13 @@ export function RaumSeite(props: { eid: string; rid: string }) {
         <h2>Heizflächen</h2>
         <div class="liste">
           {r.heizflaechen.map((h) => {
-            const fehlt = hfFehlt(a.einheit_id, h);
             const fotos = fotosVon(a.einheit_id, h.hf_id);
             return (
-              <div key={h.hf_id} class={`karte hf ${fehlt.length ? 'unvollstaendig' : ''}`}>
+              <div key={h.hf_id} class="karte hf">
                 <button class="karte-klick" onClick={() => gehe({ name: 'hf', eid: a.einheit_id, rid: r.raum_id, hfid: h.hf_id })}>
                   <div class="karte-titel">
                     HK{h.nr} · {hfKurztext(h)}
                   </div>
-                  {fehlt.length > 0 && <div class="karte-zeile warn-text">Fehlt: {fehlt.join(', ')}</div>}
                 </button>
                 {fotos.length > 0 && (
                   <div class="fotoreihe">

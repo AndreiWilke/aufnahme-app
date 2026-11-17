@@ -80,13 +80,10 @@ export function JaNein(props: { wert: boolean | null; onWahl: (w: boolean | null
   );
 }
 
-export function Feld(props: { titel: string; children: ComponentChildren; hinweis?: string; pflicht?: boolean }) {
+export function Feld(props: { titel: string; children: ComponentChildren; hinweis?: string }) {
   return (
     <div class="feld">
-      <div class="feld-titel">
-        {props.titel}
-        {props.pflicht && <span class="pflicht"> (Pflicht)</span>}
-      </div>
+      <div class="feld-titel">{props.titel}</div>
       {props.children}
       {props.hinweis && <div class="feld-hinweis">{props.hinweis}</div>}
     </div>
@@ -211,6 +208,109 @@ export function MessFeld(props: {
   );
 }
 
+/**
+ * Messwert mit Standardwerten zum Antippen. „andere“ öffnet das Zahlenfeld für jeden beliebigen Wert.
+ * Der Status gemessen/geschätzt bleibt immer am Wert.
+ */
+export function WahlMess(props: {
+  wert: Messwert;
+  werte: readonly number[];
+  einheit?: string;
+  onAendern: (m: Messwert) => void;
+}) {
+  const [offen, setOffen] = useState(false);
+  const w = props.wert.wert;
+  const andere = offen || (w !== null && !props.werte.includes(w));
+  return (
+    <div class={`wahl ${props.wert.status === 'geschätzt' ? 'ist-geschaetzt' : ''}`}>
+      <div class="tasten">
+        {props.werte.map((b) => (
+          <button
+            key={b}
+            class={`taste ${!andere && w === b ? 'aktiv' : ''}`}
+            onClick={() => {
+              setOffen(false);
+              props.onAendern(w === b && !andere ? { wert: null, status: null } : { wert: b, status: props.wert.status ?? 'gemessen' });
+            }}
+          >
+            {b}
+          </button>
+        ))}
+        <button class={`taste andere ${andere ? 'aktiv' : ''}`} onClick={() => setOffen(!andere)}>
+          andere
+        </button>
+      </div>
+      {andere && (
+        <ZahlFeld
+          wert={w}
+          ganzzahl
+          autoFokus={offen}
+          einheit={props.einheit}
+          onAendern={(n) => props.onAendern(n === null ? { wert: null, status: null } : { wert: n, status: props.wert.status ?? 'gemessen' })}
+        />
+      )}
+      <StatusSchalter status={props.wert.status} aktiv={w !== null} onWahl={(s) => props.onAendern({ wert: w, status: s })} />
+    </div>
+  );
+}
+
+/** Ganze Zahl mit Standardwerten zum Antippen, „andere“ für freie Eingabe. */
+export function WahlZahl(props: { wert: number | null; werte: readonly number[]; einheit?: string; onAendern: (n: number | null) => void }) {
+  const [offen, setOffen] = useState(false);
+  const w = props.wert;
+  const andere = offen || (w !== null && !props.werte.includes(w));
+  return (
+    <div class="wahl">
+      <div class="tasten">
+        {props.werte.map((b) => (
+          <button
+            key={b}
+            class={`taste ${!andere && w === b ? 'aktiv' : ''}`}
+            onClick={() => {
+              setOffen(false);
+              props.onAendern(w === b && !andere ? null : b);
+            }}
+          >
+            {b}
+          </button>
+        ))}
+        <button class={`taste andere ${andere ? 'aktiv' : ''}`} onClick={() => setOffen(!andere)}>
+          andere
+        </button>
+      </div>
+      {andere && <ZahlFeld wert={w} ganzzahl autoFokus={offen} einheit={props.einheit} onAendern={props.onAendern} />}
+    </div>
+  );
+}
+
+/** Text mit Vorschlägen zum Antippen, „andere“ für freie Eingabe. */
+export function WahlText(props: { wert: string; werte: readonly string[]; platzhalter?: string; onAendern: (s: string) => void }) {
+  const [offen, setOffen] = useState(false);
+  const andere = offen || (props.wert !== '' && !props.werte.includes(props.wert));
+  return (
+    <div class="wahl">
+      <div class="tasten">
+        {props.werte.map((b) => (
+          <button
+            key={b}
+            class={`taste ${!andere && props.wert === b ? 'aktiv' : ''}`}
+            onClick={() => {
+              setOffen(false);
+              props.onAendern(props.wert === b && !andere ? '' : b);
+            }}
+          >
+            {b}
+          </button>
+        ))}
+        <button class={`taste andere ${andere ? 'aktiv' : ''}`} onClick={() => setOffen(!andere)}>
+          andere
+        </button>
+      </div>
+      {andere && <TextFeld wert={props.wert} platzhalter={props.platzhalter} onAendern={props.onAendern} />}
+    </div>
+  );
+}
+
 // ---------------- Fotos ----------------
 
 export function Thumb(props: { foto: FotoMeta; onClick?: () => void }) {
@@ -284,19 +384,16 @@ export function FotoLeiste(props: {
   titel: string;
   ziel: FotoZiel;
   fotos: FotoMeta[];
-  pflicht?: boolean;
   hinweis?: string;
   knopfText?: string;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [laeuft, setLaeuft] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
-  const fehlt = props.pflicht && props.fotos.length === 0;
   return (
-    <div class={`fotoleiste ${fehlt ? 'fehlt' : ''}`}>
+    <div class="fotoleiste">
       <div class="feld-titel">
         {props.titel}
-        {props.pflicht && <span class="pflicht"> (Pflicht)</span>}
         {props.fotos.length > 0 && <span class="zaehler"> · {props.fotos.length}</span>}
       </div>
       {props.hinweis && <div class="feld-hinweis">{props.hinweis}</div>}

@@ -1,7 +1,7 @@
 // Datenmodell der Aufnahme. Entspricht UEBERGABE.md Abschnitt 5 (aufnahme.json, schema_version 1).
 // Feldwerte sind feste Schlüssel; die deutschen Anzeigetexte stehen in den *_TEXT-Tabellen.
 
-export const APP_VERSION = '1.1.0';
+export const APP_VERSION = '1.2.0';
 export const SCHEMA_VERSION = 1;
 
 export type MessStatus = 'gemessen' | 'geschätzt';
@@ -55,6 +55,46 @@ export const ART_TEXT: Record<HfArt, string> = {
 
 export const TYPEN: HfTyp[] = ['10', '11', '20', '21', '22', '33', 'unbekannt'];
 export const BAUHOEHEN = [300, 400, 500, 600, 900];
+
+/**
+ * Standardmaße zum Antippen (mm). Reine Bedienhilfe: Jeder andere Wert bleibt über „andere“ möglich,
+ * das Datenmodell und der Export ändern sich dadurch nicht.
+ */
+const HOEHEN: Partial<Record<HfArt, number[]>> = {
+  platte: [200, 300, 400, 500, 600, 900],
+  // DIN 4703: Stahl 300/450/600/1000, Guss 280/430/580/680/980
+  glieder: [280, 300, 430, 450, 580, 600, 680, 980, 1000],
+  roehren: [300, 500, 600, 750, 900, 1000, 1500, 1800, 2000],
+  bad: [800, 1200, 1500, 1800],
+  konvektor: [70, 90, 110, 140, 210, 280],
+};
+const TIEFEN: Partial<Record<HfArt, number[]>> = {
+  // Platte: Typ 10/11 etwa 65, Typ 20/21 etwa 70–80, Typ 22 100, Typ 33 155
+  platte: [50, 65, 80, 100, 155],
+  // DIN 4703: 70 (nur Guss), 110, 160, 220, 250
+  glieder: [70, 110, 160, 220, 250],
+  // 2- bis 6-Säuler
+  roehren: [65, 105, 145, 185, 225],
+  bad: [30, 40, 50],
+  konvektor: [100, 150, 200, 250, 300],
+};
+const LAENGEN_STANDARD = [400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1400, 1600, 1800, 2000, 2300, 2600, 3000];
+const LAENGEN: Partial<Record<HfArt, number[]>> = {
+  bad: [400, 450, 500, 600, 750, 900],
+};
+
+export function standardHoehen(art: HfArt | null): number[] {
+  return (art && HOEHEN[art]) || BAUHOEHEN;
+}
+export function standardLaengen(art: HfArt | null): number[] {
+  return (art && LAENGEN[art]) || LAENGEN_STANDARD;
+}
+export function standardTiefen(art: HfArt | null): number[] {
+  return (art && TIEFEN[art]) || TIEFEN.platte!;
+}
+export const GLIEDERZAHLEN = [4, 5, 6, 7, 8, 9, 10, 12, 14, 15, 16, 18, 20, 22, 24, 25, 30];
+export const VENTIL_HERSTELLER = ['Heimeier', 'Danfoss', 'Oventrop', 'Honeywell/MNG', 'Herz', 'Kermi', 'Buderus', 'nicht lesbar'];
+export const VOREINSTELLUNGEN = ['1', '2', '3', '4', '5', '6', '7', '8', 'N'];
 
 export const ANSCHLUSS_TEXT: Record<Anschluss, string> = {
   seitlich_gleich: 'seitlich gleich',

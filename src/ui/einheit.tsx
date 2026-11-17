@@ -181,7 +181,7 @@ export function EinheitSeite(props: { eid: string }) {
             <Feld titel="Gewünschte Raumtemperatur" hinweis="Die Solltemperaturen der Räume unten sind nur vorläufig.">
               <ZahlFeld wert={a.gewerbe.soll_temp_c} einheit="°C" onAendern={(n) => aendern(a.einheit_id, (x) => (x.gewerbe!.soll_temp_c = n))} />
             </Feld>
-            <Feld titel="Ansprechpartner vor Ort (optional)">
+            <Feld titel="Ansprechpartner vor Ort">
               <TextFeld wert={a.gewerbe.ansprechpartner} onAendern={(s) => aendern(a.einheit_id, (x) => (x.gewerbe!.ansprechpartner = s))} />
             </Feld>
           </div>
