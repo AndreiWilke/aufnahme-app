@@ -212,7 +212,6 @@ export function PlanViewer() {
       <input
         ref={datei}
         type="file"
-        accept="image/*"
         multiple
         style={{ display: 'none' }}
         onChange={async (e) => {
@@ -225,7 +224,8 @@ export function PlanViewer() {
           try {
             let erster: string | null = null;
             for (const d of dateien) {
-              if (!d.type.startsWith('image/')) throw new Error(`„${d.name}“ ist kein Bild (JPG oder PNG).`);
+              // Keine Einschränkung in der Dateiauswahl: iPadOS zeigt Bilder aus OneDrive sonst teils grau an.
+              if (!d.type.startsWith('image/') && !/\.(jpe?g|png|webp|gif|heic)$/i.test(d.name)) throw new Error(`„${d.name}“ ist kein Bild (JPG oder PNG).`);
               const plan_id = `${pid}:${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
               await planSpeichern({ plan_id, projekt_id: pid, name: d.name.replace(/\.[a-z0-9]+$/i, ''), blob: d });
               erster ??= plan_id;
