@@ -1,7 +1,7 @@
 // Datenmodell der Aufnahme. Entspricht UEBERGABE.md Abschnitt 5 (aufnahme.json, schema_version 1).
 // Feldwerte sind feste Schlüssel; die deutschen Anzeigetexte stehen in den *_TEXT-Tabellen.
 
-export const APP_VERSION = '1.3.5';
+export const APP_VERSION = '1.3.6';
 export const SCHEMA_VERSION = 1;
 
 export type MessStatus = 'gemessen' | 'geschätzt';
@@ -395,10 +395,11 @@ export const HZ_PUNKTE: HzPunktDef[] = [
 // ---------------- Standardmaße Fenster (Vorschläge zum Antippen, Breite × Höhe in mm) ----------------
 
 export const FENSTER_STANDARD: readonly (readonly [number, number])[] = [
-  [625, 625], [885, 1385], [1010, 1385], [1135, 1385], [1260, 1385], [1510, 1385], [1760, 1385], [2010, 1385],
+  [600, 600], [800, 1400], [1000, 1400], [1200, 1400], [1500, 1400], [1800, 1400], [2000, 1400],
+  [1000, 1500], [1200, 1500], [1500, 1500], [2000, 1500],
 ];
 export const BALKONTUER_STANDARD: readonly (readonly [number, number])[] = [
-  [885, 2135], [1010, 2135], [1760, 2135], [2010, 2135], [2510, 2135],
+  [900, 2100], [1000, 2100], [1800, 2100], [2000, 2100], [2500, 2100],
 ];
-export const FENSTER_BREITEN = [500, 625, 750, 885, 1010, 1135, 1260, 1385, 1510, 1760, 2010, 2260, 2510] as const;
-export const FENSTER_HOEHEN = [500, 625, 750, 885, 1010, 1135, 1260, 1385, 1510, 2010, 2135, 2260] as const;
+export const FENSTER_BREITEN = [500, 600, 800, 900, 1000, 1200, 1400, 1500, 1600, 1800, 2000, 2200, 2500] as const;
+export const FENSTER_HOEHEN = [500, 600, 800, 1000, 1200, 1300, 1400, 1500, 1600, 2000, 2100, 2200] as const;
