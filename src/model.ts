@@ -1,7 +1,7 @@
 // Datenmodell der Aufnahme. Entspricht UEBERGABE.md Abschnitt 5 (aufnahme.json, schema_version 1).
 // Feldwerte sind feste Schlüssel; die deutschen Anzeigetexte stehen in den *_TEXT-Tabellen.
 
-export const APP_VERSION = '1.3.4';
+export const APP_VERSION = '1.3.5';
 export const SCHEMA_VERSION = 1;
 
 export type MessStatus = 'gemessen' | 'geschätzt';
@@ -391,3 +391,14 @@ export const HZ_PUNKTE: HzPunktDef[] = [
     zahlMitStatus: true,
   },
 ];
+
+// ---------------- Standardmaße Fenster (Vorschläge zum Antippen, Breite × Höhe in mm) ----------------
+
+export const FENSTER_STANDARD: readonly (readonly [number, number])[] = [
+  [625, 625], [885, 1385], [1010, 1385], [1135, 1385], [1260, 1385], [1510, 1385], [1760, 1385], [2010, 1385],
+];
+export const BALKONTUER_STANDARD: readonly (readonly [number, number])[] = [
+  [885, 2135], [1010, 2135], [1760, 2135], [2010, 2135], [2510, 2135],
+];
+export const FENSTER_BREITEN = [500, 625, 750, 885, 1010, 1135, 1260, 1385, 1510, 1760, 2010, 2260, 2510] as const;
+export const FENSTER_HOEHEN = [500, 625, 750, 885, 1010, 1135, 1260, 1385, 1510, 2010, 2135, 2260] as const;

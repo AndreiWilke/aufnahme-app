@@ -870,3 +870,10 @@ textarea.eingabe {
 #fenster {
   scroll-margin-top: 96px;
 }
+
+.feld-titel.klein {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text2);
+  margin: 8px 0 4px;
+}

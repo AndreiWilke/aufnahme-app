@@ -1,11 +1,11 @@
-import { useEffect } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import type { EinheitAufnahme, Fenster, Heizflaeche, Raum, RaumZustand } from '../model';
-import { ART_TEXT, RAHMEN_TEXT, VERGLASUNG_TEXT, ZUSTAND_TEXT } from '../model';
+import { ART_TEXT, BALKONTUER_STANDARD, FENSTER_BREITEN, FENSTER_HOEHEN, FENSTER_STANDARD, RAHMEN_TEXT, VERGLASUNG_TEXT, ZUSTAND_TEXT } from '../model';
 import { aendern, fotosVon, gehe, planEinheit, S } from '../store';
 import { PlanKnopf } from './plan';
 import { fotoPraefix } from '../fotos';
 import { isoJetzt, leerMesswert, uuid } from '../util';
-import { Feld, FotoLeiste, Hinweis, Kopf, StatusSchalter, Tasten, TextFeld, Thumb, ZahlFeld, fotoZeigen } from './common';
+import { Feld, FotoLeiste, Hinweis, Kopf, StatusSchalter, Tasten, TextFeld, Thumb, WahlZahl, ZahlFeld, fotoZeigen } from './common';
 import { flaecheText, nutzungText, sollTempFuer, sollText } from './einheit';
 
 export function neueHeizflaeche(r: Raum, jetzt: string, vorlage?: Heizflaeche): Heizflaeche {
@@ -66,8 +66,14 @@ export function naechsterRaum(a: EinheitAufnahme, rid: string): Raum | null {
   return null;
 }
 
-function leeresFenster(jetzt: string): Fenster {
-  return { fenster_id: uuid(), anzahl: 1, verglasung: null, rahmen: null, breite_mm: null, hoehe_mm: null, masse_status: null, fotos: [], geaendert_am: jetzt };
+/** Neues Fenster. Verglasung und Rahmen kommen vom zuletzt aufgenommenen Fenster der Einheit (meist überall gleich). */
+function leeresFenster(jetzt: string, a?: EinheitAufnahme): Fenster {
+  const letztes = a?.raeume
+    .flatMap((r) => r.fenster)
+    .filter((f) => f.verglasung || f.rahmen)
+    .sort((x, y) => (x.geaendert_am ?? '').localeCompare(y.geaendert_am ?? ''))
+    .pop();
+  return { fenster_id: uuid(), anzahl: 1, verglasung: letztes?.verglasung ?? null, rahmen: letztes?.rahmen ?? null, breite_mm: null, hoehe_mm: null, masse_status: null, fotos: [], geaendert_am: jetzt };
 }
 
 let zuFenstern = false;
@@ -78,7 +84,7 @@ export function fensterAufnehmen(eid: string, rid: string) {
   if (r.fenster.length === 0)
     aendern(eid, (a, jetzt) => {
       const x = a.raeume.find((q) => q.raum_id === rid)!;
-      x.fenster.push(leeresFenster(jetzt));
+      x.fenster.push(leeresFenster(jetzt, a));
       x.geaendert_am = jetzt;
     });
   zuFenstern = true;
@@ -120,6 +126,28 @@ function FensterBlock(props: { a: EinheitAufnahme; r: Raum; f: Fenster; index: n
       x.geaendert_am = jetzt;
     });
   const masse = f.breite_mm !== null || f.hoehe_mm !== null;
+  const [fotoOffen, setFotoOffen] = useState(false);
+  const fotos = fotosVon(a.einheit_id, f.fenster_id);
+  /** Maß ändern: Status bleibt erhalten, ohne Maße kein Status. */
+  const mass = (fn: (x: Fenster) => void) =>
+    set((x) => {
+      fn(x);
+      if (x.breite_mm === null && x.hoehe_mm === null) x.masse_status = null;
+      else if (!x.masse_status) x.masse_status = 'gemessen';
+    });
+  /** Standardmaß antippen: beide Maße setzen (geschätzt), nochmal antippen leert sie. */
+  const standard = (b: number, h: number) =>
+    set((x) => {
+      if (x.breite_mm === b && x.hoehe_mm === h) {
+        x.breite_mm = null;
+        x.hoehe_mm = null;
+        x.masse_status = null;
+      } else {
+        x.breite_mm = b;
+        x.hoehe_mm = h;
+        x.masse_status = 'geschätzt';
+      }
+    });
   return (
     <div class="block fenster">
       <div class="block-kopf">
@@ -150,29 +178,52 @@ function FensterBlock(props: { a: EinheitAufnahme; r: Raum; f: Fenster; index: n
       <Feld titel="Rahmen">
         <Tasten werte={Object.keys(RAHMEN_TEXT) as (keyof typeof RAHMEN_TEXT)[]} wert={f.rahmen} text={(w) => RAHMEN_TEXT[w]} onWahl={(w) => set((x) => (x.rahmen = w))} />
       </Feld>
-      <Feld titel="Breite × Höhe">
-        <div class="reihe">
-          <ZahlFeld wert={f.breite_mm} ganzzahl einheit="mm" platzhalter="Breite" onAendern={(n) => set((x) => { x.breite_mm = n; if (!x.masse_status) x.masse_status = 'gemessen'; if (x.breite_mm === null && x.hoehe_mm === null) x.masse_status = null; })} />
-          <span class="mal">×</span>
-          <ZahlFeld wert={f.hoehe_mm} ganzzahl einheit="mm" platzhalter="Höhe" onAendern={(n) => set((x) => { x.hoehe_mm = n; if (!x.masse_status) x.masse_status = 'gemessen'; if (x.breite_mm === null && x.hoehe_mm === null) x.masse_status = null; })} />
+      <Feld titel="Standardmaß Breite × Höhe" hinweis="Antippen trägt beide Maße als „geschätzt“ ein. Nach dem Nachmessen unten auf „gemessen“ stellen.">
+        <div class="feld-titel klein">Fenster</div>
+        <div class="tasten">
+          {FENSTER_STANDARD.map(([b, h]) => (
+            <button key={`${b}x${h}`} class={`taste ${f.breite_mm === b && f.hoehe_mm === h ? 'aktiv' : ''}`} onClick={() => standard(b, h)}>
+              {b} × {h}
+            </button>
+          ))}
         </div>
+        <div class="feld-titel klein">Balkontür / Fenstertür</div>
+        <div class="tasten">
+          {BALKONTUER_STANDARD.map(([b, h]) => (
+            <button key={`${b}x${h}`} class={`taste ${f.breite_mm === b && f.hoehe_mm === h ? 'aktiv' : ''}`} onClick={() => standard(b, h)}>
+              {b} × {h}
+            </button>
+          ))}
+        </div>
+      </Feld>
+      <Feld titel="Breite (mm)">
+        <WahlZahl werte={FENSTER_BREITEN} wert={f.breite_mm} einheit="mm" onAendern={(n) => mass((x) => (x.breite_mm = n))} />
+      </Feld>
+      <Feld titel="Höhe (mm)">
+        <WahlZahl werte={FENSTER_HOEHEN} wert={f.hoehe_mm} einheit="mm" onAendern={(n) => mass((x) => (x.hoehe_mm = n))} />
         <StatusSchalter status={f.masse_status} aktiv={masse} onWahl={(s) => set((x) => (x.masse_status = s))} />
       </Feld>
-      <FotoLeiste
-        titel="Foto Fenster"
-        fotos={fotosVon(a.einheit_id, f.fenster_id)}
-        ziel={{
-          eid: a.einheit_id,
-          praefix: fotoPraefix(a, { art: 'fenster', raumNr: r.nr, raumName: r.name }),
-          rolle: 'Fenster',
-          bezug_id: f.fenster_id,
-          eintragen: (au, name, jetzt) => {
-            const x = au.raeume.find((q) => q.raum_id === r.raum_id)!.fenster.find((q) => q.fenster_id === f.fenster_id)!;
-            x.fotos.push(name);
-            x.geaendert_am = jetzt;
-          },
-        }}
-      />
+      {fotos.length > 0 || fotoOffen ? (
+        <FotoLeiste
+          titel="Foto Fenster"
+          fotos={fotos}
+          ziel={{
+            eid: a.einheit_id,
+            praefix: fotoPraefix(a, { art: 'fenster', raumNr: r.nr, raumName: r.name }),
+            rolle: 'Fenster',
+            bezug_id: f.fenster_id,
+            eintragen: (au, name, jetzt) => {
+              const x = au.raeume.find((q) => q.raum_id === r.raum_id)!.fenster.find((q) => q.fenster_id === f.fenster_id)!;
+              x.fotos.push(name);
+              x.geaendert_am = jetzt;
+            },
+          }}
+        />
+      ) : (
+        <button class="knopf klein" onClick={() => setFotoOffen(true)}>
+          Foto hinzufügen
+        </button>
+      )}
     </div>
   );
 }
@@ -246,7 +297,7 @@ export function RaumSeite(props: { eid: string; rid: string }) {
           class="knopf gross"
           onClick={() =>
             setRaum((x) =>
-              x.fenster.push(leeresFenster(isoJetzt())),
+              x.fenster.push(leeresFenster(isoJetzt(), S.aufnahmen.get(a.einheit_id))),
             )
           }
         >
