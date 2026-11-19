@@ -1,6 +1,7 @@
 import type { EinheitAufnahme, Fenster, Heizflaeche, Raum, RaumZustand } from '../model';
 import { ART_TEXT, RAHMEN_TEXT, VERGLASUNG_TEXT, ZUSTAND_TEXT } from '../model';
 import { aendern, fotosVon, gehe, planEinheit, S } from '../store';
+import { PlanKnopf } from './plan';
 import { fotoPraefix } from '../fotos';
 import { isoJetzt, leerMesswert, uuid } from '../util';
 import { Feld, FotoLeiste, Hinweis, Kopf, StatusSchalter, Tasten, TextFeld, Thumb, ZahlFeld, fotoZeigen } from './common';
@@ -176,6 +177,7 @@ export function RaumSeite(props: { eid: string; rid: string }) {
         titel={`${r.nr} ${r.name}`}
         unter={`${pe?.bezeichnung ?? a.einheit_id}${a.aufgenommen_bezeichnung !== pe?.bezeichnung ? ' → ' + a.aufgenommen_bezeichnung : ''} · ${nutzungText(r.nutzung)} · ${sollText(r.soll_temp_c)}`}
         zurueck={() => gehe({ name: 'einheit', eid: a.einheit_id })}
+        rechts={<PlanKnopf eid={a.einheit_id} />}
       />
       <main class="inhalt">
         <div class="raum-plan">

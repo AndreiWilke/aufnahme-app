@@ -1,5 +1,6 @@
 import { S, useStore } from './store';
 import { FotoViewer } from './ui/common';
+import { PlanViewer } from './ui/plan';
 import { Start } from './ui/start';
 import { ProjektSeite } from './ui/projekt';
 import { EinheitSeite } from './ui/einheit';
@@ -43,6 +44,7 @@ export function App() {
         <Seite />
       </div>
       <FotoViewer />
+      <PlanViewer />
     </>
   );
 }

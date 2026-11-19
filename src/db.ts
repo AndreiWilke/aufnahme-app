@@ -16,14 +16,26 @@ interface AufnahmeDB extends DBSchema {
   };
   fotoblob: { key: string; value: FotoBlob };
   einstellungen: { key: string; value: unknown };
+  plaene: { key: string; value: PlanBild; indexes: { projekt: string } };
 }
+
+/** Grundriss als Bild, nur lokal auf dem Gerät (nicht im Export). */
+export interface PlanBild {
+  plan_id: string;
+  projekt_id: string;
+  name: string;
+  blob: Blob;
+}
+export type PlanMeta = Pick<PlanBild, 'plan_id' | 'name'>;
 
 let dbPromise: Promise<IDBPDatabase<AufnahmeDB>> | null = null;
 
 export function db(): Promise<IDBPDatabase<AufnahmeDB>> {
   if (!dbPromise) {
-    dbPromise = openDB<AufnahmeDB>('aufnahme-app', 1, {
-      upgrade(d) {
+    dbPromise = openDB<AufnahmeDB>('aufnahme-app', 2, {
+      upgrade(d, alt) {
+        if (alt < 2) d.createObjectStore('plaene', { keyPath: 'plan_id' }).createIndex('projekt', 'projekt_id');
+        if (alt >= 1) return;
         d.createObjectStore('projekte', { keyPath: 'projekt_id' });
         const e = d.createObjectStore('einheiten', { keyPath: ['projekt_id', 'einheit_id'] });
         e.createIndex('projekt', 'projekt_id');
@@ -121,8 +133,9 @@ export async function exportMarkieren(aufnahmen: EinheitAufnahme[], metas: FotoM
 export async function projektLoeschen(projekt_id: string): Promise<void> {
   const d = await db();
   const fotoIds = await d.getAllKeysFromIndex('fotometa', 'projekt', projekt_id);
-  const tx = d.transaction(['projekte', 'einheiten', 'fotometa', 'fotoblob'], 'readwrite');
+  const tx = d.transaction(['projekte', 'einheiten', 'fotometa', 'fotoblob', 'plaene'], 'readwrite');
   await tx.objectStore('projekte').delete(projekt_id);
+  for (const k of await tx.objectStore('plaene').index('projekt').getAllKeys(projekt_id)) await tx.objectStore('plaene').delete(k);
   const eKeys = await tx.objectStore('einheiten').index('projekt').getAllKeys(projekt_id);
   for (const k of eKeys) await tx.objectStore('einheiten').delete(k);
   for (const id of fotoIds) {
@@ -138,4 +151,23 @@ export async function einstellungLesen<T>(key: string): Promise<T | undefined> {
 
 export async function einstellungSchreiben(key: string, value: unknown): Promise<void> {
   await (await db()).put('einstellungen', value, key);
+}
+
+// ---------------- Pläne (Grundrisse als Bilder) ----------------
+
+export async function plaeneListen(projekt_id: string): Promise<PlanMeta[]> {
+  const alle = await (await db()).getAllFromIndex('plaene', 'projekt', projekt_id);
+  return alle.map((p) => ({ plan_id: p.plan_id, name: p.name })).sort((a, b) => a.name.localeCompare(b.name, 'de', { numeric: true }));
+}
+
+export async function planLaden(plan_id: string): Promise<PlanBild | undefined> {
+  return (await db()).get('plaene', plan_id);
+}
+
+export async function planSpeichern(p: PlanBild): Promise<void> {
+  await (await db()).put('plaene', p);
+}
+
+export async function planLoeschen(plan_id: string): Promise<void> {
+  await (await db()).delete('plaene', plan_id);
 }

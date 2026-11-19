@@ -59,3 +59,9 @@ Format siehe [`docs/projektdatei.md`](docs/projektdatei.md). Beispiel: [`data/be
 
 ## Export
 Beschreibung der ZIP-Inhalte und Abweichungen vom Schema in [`docs/export.md`](docs/export.md).
+
+## Pläne (Grundrisse)
+In jeder Einheit und in jedem Raum öffnet der Knopf „Plan“ die Plan-Ansicht. Über „+ Plan laden“ werden Grundrisse als
+Bilder (JPG/PNG) aus OneDrive gewählt; sie bleiben nur auf dem Gerät und stehen nicht im Export. Heißt ein Bild wie das
+Geschoss der Einheit (z. B. `2. OG.jpg`), wird es automatisch gewählt. Plan, Zoom und Ausschnitt merkt sich die App je
+Einheit. Echte Pläne gehören nicht ins Repository.

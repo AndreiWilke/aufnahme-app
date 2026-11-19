@@ -806,3 +806,63 @@ textarea.eingabe {
   color: #fff;
   border-style: solid;
 }
+
+/* ---- Plan-Ansicht ---- */
+.plan-knopf {
+  font-size: 17px;
+  color: var(--gruen);
+  border-color: var(--gruen);
+  background: var(--flaeche);
+}
+.plan-viewer {
+  background: var(--bg);
+  color: var(--text);
+}
+.plan-viewer .viewer-leiste {
+  background: var(--flaeche);
+  border-bottom: 1px solid var(--rand);
+}
+.plan-viewer .viewer-leiste .knopf {
+  background: var(--flaeche2);
+  min-width: var(--tap);
+}
+.plan-titel {
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 700;
+  word-break: normal;
+}
+.plan-reiter {
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px;
+  overflow-x: auto;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--rand);
+}
+.plan-reiter .taste {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.plan-weg {
+  color: var(--rot);
+  margin-left: auto;
+}
+.plan-flaeche {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  background: #fff;
+}
+.plan-bild {
+  display: block;
+  max-width: none;
+  height: auto;
+}
+.plan-leer {
+  max-width: 560px;
+  margin: 40px auto;
+  padding: 0 20px;
+  color: var(--text2);
+}

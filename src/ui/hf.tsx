@@ -49,6 +49,7 @@ export function HfSeite(props: { eid: string; rid: string; hfid: string }) {
 
   const fbh = h.art === 'fussbodenheizung';
   const glieder = h.art === 'glieder' || h.art === 'roehren';
+  const nische = h.nische_vorhanden ?? (h.nische_mm.breite !== null || h.nische_mm.hoehe !== null);
 
   return (
     <div>
@@ -126,6 +127,30 @@ export function HfSeite(props: { eid: string; rid: string; hfid: string }) {
         </Feld>
 
         {!fbh && (
+          <Feld titel="Nische vorhanden">
+            <div class="tasten">
+              <button
+                class={`taste ${nische ? 'aktiv' : ''}`}
+                onClick={() => set((x) => (x.nische_vorhanden = true))}
+              >
+                ja
+              </button>
+              <button
+                class={`taste ${nische ? '' : 'aktiv'}`}
+                onClick={() =>
+                  set((x) => {
+                    x.nische_vorhanden = false;
+                    x.nische_mm = { breite: null, hoehe: null, status: null };
+                  })
+                }
+              >
+                nein
+              </button>
+            </div>
+          </Feld>
+        )}
+
+        {!fbh && nische && (
           <Feld titel="Nische Breite × Höhe">
             <div class="reihe">
               <ZahlFeld

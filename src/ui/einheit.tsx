@@ -3,6 +3,7 @@ import type { EinheitStatus, Raum } from '../model';
 import { STATUS_TEXT, ZUSTAND_TEXT } from '../model';
 import { aendern, fotosDerEinheit, gehe, planEinheit, S } from '../store';
 import { Feld, Hinweis, JaNein, Kopf, Tasten, TextFeld, ZahlFeld } from './common';
+import { PlanKnopf } from './plan';
 import { fortschritt } from './projekt';
 
 export function nutzungText(schluessel: string): string {
@@ -159,6 +160,7 @@ export function EinheitSeite(props: { eid: string }) {
         titel={pe?.bezeichnung ?? a.einheit_id}
         unter={`${a.einheit_id}${pe?.geschoss ? ' · ' + pe.geschoss : ''}${pe?.uhrzeit ? ' · ' + pe.uhrzeit + ' Uhr' : ''}`}
         zurueck={() => gehe({ name: 'projekt' })}
+        rechts={<PlanKnopf eid={a.einheit_id} />}
       />
       <main class="inhalt">
         {pe?.hinweis && (
@@ -245,7 +247,7 @@ export function EinheitSeite(props: { eid: string }) {
         )}
 
         <div class="block">
-          <Feld titel="Abweichung vom Plan">
+          <Feld titel="Abweichung vom Plan" hinweis="Vergleich mit Raumliste und Grundriss (oben „Plan“). Nur antippen, wenn vor Ort etwas anders ist.">
             <JaNein wert={a.abweichung_vom_plan} onWahl={(w) => aendern(a.einheit_id, (x) => (x.abweichung_vom_plan = w === true))} />
           </Feld>
           <Feld titel="Notiz zur Einheit" hinweis="Diktat über das Mikrofon der Tastatur.">
