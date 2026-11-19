@@ -877,3 +877,81 @@ textarea.eingabe {
   color: var(--text2);
   margin: 8px 0 4px;
 }
+
+/* ---- Hilfe ---- */
+.hilfe {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 16px calc(32px + env(safe-area-inset-bottom));
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+}
+.hilfe-karte {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 14px;
+  margin-bottom: 12px;
+  background: var(--flaeche);
+  border: 1px solid var(--rand);
+  border-radius: var(--radius);
+}
+.hilfe-bild {
+  width: 150px;
+  flex-shrink: 0;
+  color: var(--text);
+  background: var(--flaeche2);
+  border-radius: 8px;
+}
+.hilfe-bild .vl {
+  stroke: var(--rot);
+  stroke-width: 4;
+}
+.hilfe-bild .rl {
+  stroke: var(--blau);
+  stroke-width: 4;
+}
+.hilfe-bild .kopf {
+  stroke: var(--gruen);
+  fill: var(--gruen);
+}
+.hilfe-zahl {
+  font-size: 13px;
+  font-weight: 700;
+  fill: var(--text);
+  stroke: none;
+}
+.hilfe-titel {
+  font-weight: 700;
+  font-size: 18px;
+  margin-bottom: 4px;
+}
+.hilfe-text {
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1.45;
+}
+.hilfe-legende {
+  margin: -4px 0 12px;
+  color: var(--text2);
+}
+.vl-text {
+  color: var(--rot);
+  font-weight: 700;
+}
+.rl-text {
+  color: var(--blau);
+  font-weight: 700;
+}
+.hilfe-schluss {
+  margin-top: 16px;
+  color: var(--text2);
+}
+@media (max-width: 560px) {
+  .hilfe-karte {
+    flex-direction: column;
+  }
+}

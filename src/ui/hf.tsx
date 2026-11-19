@@ -14,6 +14,7 @@ import {
 import { aendern, fotosEntfernen, fotosVon, gehe, planEinheit, S } from '../store';
 import { fotoPraefix } from '../fotos';
 import { Feld, FotoLeiste, Hinweis, JaNein, Kopf, StatusSchalter, Tasten, TextFeld, WahlMess, WahlText, WahlZahl, ZahlFeld } from './common';
+import { HilfeKnopf } from './hilfe';
 import { fensterAufnehmen, heizflaecheAnlegen, raumFertig } from './raum';
 
 const ARTEN = Object.keys(ART_TEXT) as HfArt[];
@@ -57,6 +58,7 @@ export function HfSeite(props: { eid: string; rid: string; hfid: string }) {
         titel={`HK${h.nr} · ${r.nr} ${r.name}`}
         unter={`${pe?.bezeichnung ?? a.einheit_id}${a.aufgenommen_bezeichnung !== pe?.bezeichnung ? ' → ' + a.aufgenommen_bezeichnung : ''}`}
         zurueck={() => gehe({ name: 'raum', eid: a.einheit_id, rid: r.raum_id })}
+        rechts={<HilfeKnopf />}
       />
       <main class="inhalt">
         <Hinweis>Keine Personen fotografieren. Fotos landen nicht in der Fotomediathek – Sicherung ist der Export.</Hinweis>
