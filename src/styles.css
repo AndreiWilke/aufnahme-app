@@ -866,3 +866,7 @@ textarea.eingabe {
   padding: 0 20px;
   color: var(--text2);
 }
+
+#fenster {
+  scroll-margin-top: 96px;
+}

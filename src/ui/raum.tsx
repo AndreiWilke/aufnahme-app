@@ -1,3 +1,4 @@
+import { useEffect } from 'preact/hooks';
 import type { EinheitAufnahme, Fenster, Heizflaeche, Raum, RaumZustand } from '../model';
 import { ART_TEXT, RAHMEN_TEXT, VERGLASUNG_TEXT, ZUSTAND_TEXT } from '../model';
 import { aendern, fotosVon, gehe, planEinheit, S } from '../store';
@@ -63,6 +64,25 @@ export function naechsterRaum(a: EinheitAufnahme, rid: string): Raum | null {
     if (r.raum_id !== rid && r.zustand === 'vorhanden' && !r.erledigt) return r;
   }
   return null;
+}
+
+function leeresFenster(jetzt: string): Fenster {
+  return { fenster_id: uuid(), anzahl: 1, verglasung: null, rahmen: null, breite_mm: null, hoehe_mm: null, masse_status: null, fotos: [], geaendert_am: jetzt };
+}
+
+let zuFenstern = false;
+
+/** Von der Heizfläche weiter zu den Fenstern des Raums. Legt das erste Fenster gleich an. */
+export function fensterAufnehmen(eid: string, rid: string) {
+  const r = S.aufnahmen.get(eid)!.raeume.find((x) => x.raum_id === rid)!;
+  if (r.fenster.length === 0)
+    aendern(eid, (a, jetzt) => {
+      const x = a.raeume.find((q) => q.raum_id === rid)!;
+      x.fenster.push(leeresFenster(jetzt));
+      x.geaendert_am = jetzt;
+    });
+  zuFenstern = true;
+  gehe({ name: 'raum', eid, rid });
 }
 
 export function raumFertig(eid: string, rid: string) {
@@ -170,6 +190,11 @@ export function RaumSeite(props: { eid: string; rid: string }) {
       x.geaendert_am = jetzt;
     });
   const nutzungen = S.projekt?.nutzungsarten ?? [];
+  useEffect(() => {
+    if (!zuFenstern) return;
+    zuFenstern = false;
+    requestAnimationFrame(() => document.getElementById('fenster')?.scrollIntoView({ block: 'start' }));
+  }, [props.rid]);
 
   return (
     <div>
@@ -213,7 +238,7 @@ export function RaumSeite(props: { eid: string; rid: string }) {
           + Heizfläche
         </button>
 
-        <h2>Fenster</h2>
+        <h2 id="fenster">Fenster</h2>
         {r.fenster.map((f, i) => (
           <FensterBlock key={f.fenster_id} a={a} r={r} f={f} index={i} />
         ))}
@@ -221,17 +246,7 @@ export function RaumSeite(props: { eid: string; rid: string }) {
           class="knopf gross"
           onClick={() =>
             setRaum((x) =>
-              x.fenster.push({
-                fenster_id: uuid(),
-                anzahl: 1,
-                verglasung: null,
-                rahmen: null,
-                breite_mm: null,
-                hoehe_mm: null,
-                masse_status: null,
-                fotos: [],
-                geaendert_am: isoJetzt(),
-              }),
+              x.fenster.push(leeresFenster(isoJetzt())),
             )
           }
         >

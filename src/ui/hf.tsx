@@ -14,7 +14,7 @@ import {
 import { aendern, fotosEntfernen, fotosVon, gehe, planEinheit, S } from '../store';
 import { fotoPraefix } from '../fotos';
 import { Feld, FotoLeiste, Hinweis, JaNein, Kopf, StatusSchalter, Tasten, TextFeld, WahlMess, WahlText, WahlZahl, ZahlFeld } from './common';
-import { heizflaecheAnlegen, raumFertig } from './raum';
+import { fensterAufnehmen, heizflaecheAnlegen, raumFertig } from './raum';
 
 const ARTEN = Object.keys(ART_TEXT) as HfArt[];
 const ANSCHLUESSE = Object.keys(ANSCHLUSS_TEXT) as Anschluss[];
@@ -198,7 +198,10 @@ export function HfSeite(props: { eid: string; rid: string; hfid: string }) {
           <button class="knopf gross" onClick={() => heizflaecheAnlegen(a.einheit_id, r.raum_id)}>
             Nächste Heizfläche
           </button>
-          <button class="knopf gross primaer" onClick={() => raumFertig(a.einheit_id, r.raum_id)}>
+          <button class="knopf gross primaer" onClick={() => fensterAufnehmen(a.einheit_id, r.raum_id)}>
+            Weiter zu den Fenstern
+          </button>
+          <button class="knopf gross" onClick={() => raumFertig(a.einheit_id, r.raum_id)}>
             Raum fertig → nächster Raum
           </button>
         </div>

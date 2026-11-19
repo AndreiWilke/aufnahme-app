@@ -1,7 +1,7 @@
 // Datenmodell der Aufnahme. Entspricht UEBERGABE.md Abschnitt 5 (aufnahme.json, schema_version 1).
 // Feldwerte sind feste Schlüssel; die deutschen Anzeigetexte stehen in den *_TEXT-Tabellen.
 
-export const APP_VERSION = '1.3.3';
+export const APP_VERSION = '1.3.4';
 export const SCHEMA_VERSION = 1;
 
 export type MessStatus = 'gemessen' | 'geschätzt';
