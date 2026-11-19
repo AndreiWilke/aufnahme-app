@@ -26,6 +26,7 @@ Die Felder aus Abschnitt 5 sind unverändert. Zusätzlich:
 | `einheiten[].im_plan_entfallen`, `raeume[].im_plan_entfallen` | Einheit/Raum in neuerer Projektdatei nicht mehr enthalten |
 | `fenster[].fenster_id` | eindeutige Zuordnung von Fotos und Änderungen |
 | `fenster[].masse_status` | Datenstatus für Breite/Höhe (jeder Messwert trägt einen Status, AGENTS.md) |
+| `heizflaechen[].nische_vorhanden` (seit 1.3.1) | `true`/`false`; ohne Angabe `false`, bei Fußbodenheizung `null`. Steht in `aufnahme.json` nach `lage` und in `heizflaechen.csv` als Spalte `nische_vorhanden` vor `nische_breite_mm`. Nötig, weil eine Nische ohne Maße sonst nicht von „keine Nische“ zu unterscheiden ist |
 | `heizzentrale` | Struktur siehe unten (in Abschnitt 5 nur `null`) |
 
 ### Heizzentrale

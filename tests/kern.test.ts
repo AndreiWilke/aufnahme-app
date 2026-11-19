@@ -122,6 +122,12 @@ describe('CSV', () => {
     expect(hf.baulaenge_mm).toEqual({ wert: 1200, status: 'geschätzt' });
     expect(hf.gliederzahl).toBeNull(); // nur bei Glieder/Röhren
     expect(hf.nische_mm.status).toBeNull(); // ohne Maß kein Status
+    expect(hf.nische_vorhanden).toBe(false); // ohne Angabe gilt „nein“
+    expect(c).toContain(';lage;nische_vorhanden;nische_breite_mm;');
+    a.raeume[2].heizflaechen[0].nische_vorhanden = true;
+    const hf2 = aufnahmeJson(p, [a], 'komplett', 'x', '2026-12-05T16:10:00+01:00').einheiten[0].raeume[2].heizflaechen[0];
+    expect(hf2.nische_vorhanden).toBe(true); // Nische ja, auch ohne Maße
+    expect(csvDateien(p, [a])['heizflaechen.csv']).toContain(';unter_fenster;ja;;;;');
   });
 });
 

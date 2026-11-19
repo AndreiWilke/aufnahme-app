@@ -45,6 +45,9 @@ function hfExport(h: Heizflaeche) {
     anschluss: h.anschluss,
     ventil: { ...h.ventil },
     lage: h.lage,
+    // Ohne Angabe gilt „nein“; ältere Aufnahmen mit Maßen gelten als „ja“. Fußbodenheizung: null.
+    nische_vorhanden:
+      h.art === 'fussbodenheizung' ? null : (h.nische_vorhanden ?? (h.nische_mm.breite !== null || h.nische_mm.hoehe !== null)),
     nische_mm: {
       breite: h.nische_mm.breite,
       hoehe: h.nische_mm.hoehe,
@@ -204,7 +207,7 @@ export function csvDateien(projekt: Projekt, aufnahmen: EinheitAufnahme[]): Reco
           h.bauhoehe_mm.wert, h.bauhoehe_mm.status, h.baulaenge_mm.wert, h.baulaenge_mm.status,
           h.bautiefe_mm.wert, h.bautiefe_mm.status, h.gliederzahl, h.anschluss,
           h.ventil.hersteller_text, h.ventil.voreinstellung_ablesbar, h.ventil.voreinstellung_wert, h.ventil.thermostatkopf,
-          h.lage, h.nische_mm.breite, h.nische_mm.hoehe, h.nische_mm.status, h.notiz, h.fotos.join(', '), h.geaendert_am,
+          h.lage, h.nische_vorhanden, h.nische_mm.breite, h.nische_mm.hoehe, h.nische_mm.status, h.notiz, h.fotos.join(', '), h.geaendert_am,
         ]);
       }
       for (const f of r.fenster) {
@@ -248,7 +251,7 @@ export function csvDateien(projekt: Projekt, aufnahmen: EinheitAufnahme[]): Reco
       ['einheit_id', 'raum_id', 'raum_name', 'hf_id', 'nr', 'art', 'typ', 'bauhoehe_mm', 'bauhoehe_status',
         'baulaenge_mm', 'baulaenge_status', 'bautiefe_mm', 'bautiefe_status', 'gliederzahl', 'anschluss',
         'ventil_hersteller_text', 'ventil_voreinstellung_ablesbar', 'ventil_voreinstellung_wert', 'ventil_thermostatkopf',
-        'lage', 'nische_breite_mm', 'nische_hoehe_mm', 'nische_status', 'notiz', 'fotos', 'geaendert_am'],
+        'lage', 'nische_vorhanden', 'nische_breite_mm', 'nische_hoehe_mm', 'nische_status', 'notiz', 'fotos', 'geaendert_am'],
       hf,
     ),
     'fenster.csv': csv(

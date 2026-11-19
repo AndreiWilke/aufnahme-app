@@ -1,7 +1,7 @@
 // Datenmodell der Aufnahme. Entspricht UEBERGABE.md Abschnitt 5 (aufnahme.json, schema_version 1).
 // Feldwerte sind feste Schlüssel; die deutschen Anzeigetexte stehen in den *_TEXT-Tabellen.
 
-export const APP_VERSION = '1.3.0';
+export const APP_VERSION = '1.3.1';
 export const SCHEMA_VERSION = 1;
 
 export type MessStatus = 'gemessen' | 'geschätzt';
@@ -151,7 +151,7 @@ export interface Heizflaeche {
   ventil: Ventil;
   lage: Lage | null;
   nische_mm: { breite: number | null; hoehe: number | null; status: MessStatus | null };
-  /** Nur Bedienung: Nische vorhanden? Ohne Angabe gilt „nein“. Steht nicht im Export. */
+  /** Nur Bedienung: Nische vorhanden? Ohne Angabe gilt „nein“. Im Export als nische_vorhanden (ja/nein). */
   nische_vorhanden?: boolean;
   notiz: string;
   fotos: string[];
