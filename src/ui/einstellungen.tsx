@@ -6,11 +6,36 @@ import { Hinweis, Kopf } from './common';
 import { DateiLaden } from './start';
 import { lasttestErzeugen, LASTTEST_ID } from '../lasttest';
 
+/** Sucht eine neue Version, schaltet sie sofort scharf und lädt die App neu. */
+async function updateHolen(): Promise<void> {
+  const reg = await navigator.serviceWorker?.getRegistration();
+  if (!reg) return location.reload();
+  await reg.update();
+  const neu = reg.waiting ?? reg.installing;
+  if (!neu) return location.reload();
+  let fertig = false;
+  const neuLaden = () => {
+    if (fertig) return;
+    fertig = true;
+    location.reload();
+  };
+  navigator.serviceWorker.addEventListener('controllerchange', neuLaden);
+  const scharf = () => neu.postMessage('skipWaiting');
+  if (neu.state === 'installed') scharf();
+  else
+    neu.addEventListener('statechange', () => {
+      if (neu.state === 'installed') scharf();
+      if (neu.state === 'redundant') neuLaden();
+    });
+  setTimeout(neuLaden, 20000);
+}
+
 export function EinstellungenSeite() {
   const [speicher, setSpeicher] = useState<{ belegt: number; frei: number } | null>(null);
   const [persist, setPersist] = useState<boolean | null>(S.persistiert);
   const [meldung, setMeldung] = useState<{ text: string; fehler: boolean } | null>(null);
   const [last, setLast] = useState<string | null>(null);
+  const [update, setUpdate] = useState(false);
 
   const messen = async () => {
     if (navigator.storage?.estimate) {
@@ -123,9 +148,22 @@ export function EinstellungenSeite() {
         <div class="block">
           <h3>App</h3>
           <div>Version {APP_VERSION}</div>
-          <button class="knopf" onClick={() => location.reload()}>
-            Neu laden (Update holen)
+          <button
+            class="knopf"
+            disabled={update}
+            onClick={async () => {
+              setUpdate(true);
+              try {
+                await updateHolen();
+              } catch (e) {
+                setMeldung({ text: `Update nicht möglich (Internet vorhanden?): ${(e as Error).message}`, fehler: true });
+                setUpdate(false);
+              }
+            }}
+          >
+            {update ? 'Prüft …' : 'Neue Version laden'}
           </button>
+          <div class="feld-hinweis">Braucht Internet. Aufnahmen und Fotos bleiben erhalten.</div>
         </div>
       </main>
     </div>
