@@ -4,6 +4,7 @@ import { fotoBlobLaden, exportMarkieren } from '../db';
 import { fotoNichtExportiert, hatUnexportierteAenderungen, zipErstellen, type ExportArt, type ExportErgebnis } from '../export';
 import { fotosDerEinheit, gehe, melden, S } from '../store';
 import { formatBytes, formatDatum, formatZeit } from '../util';
+import { exportMaengel } from '../pruefung';
 import { Feld, Hinweis, Kopf, Tasten } from './common';
 import { einheitOeffnen, gruppiertNachTag } from './projekt';
 
@@ -60,6 +61,8 @@ export function ExportSeite(props: { eid?: string }) {
 
   const { aufnahmen, fotos } = auswahl(umfang, art);
   const groesse = fotos.reduce((s, f) => s + f.groesse, 0);
+  const maengel = exportMaengel(aufnahmen);
+  const anzahlMaengel = maengel.reduce((s, m) => s + m.maengel.length, 0);
   const tage = gruppiertNachTag(p.einheiten);
   const ut = umfangText(umfang);
 
@@ -175,6 +178,30 @@ export function ExportSeite(props: { eid?: string }) {
             <Hinweis art="warn">Sehr groß für den Arbeitsspeicher des Browsers. Besser je Einheit exportieren.</Hinweis>
           )}
         </div>
+
+        {maengel.length > 0 && (
+          <div class="block">
+            <h3>Vor dem Export prüfen</h3>
+            <Hinweis art="warn">
+              {anzahlMaengel === 1 ? 'Eine Heizfläche ist' : `${anzahlMaengel} Heizflächen sind`} unvollständig. Der Export ist trotzdem möglich.
+            </Hinweis>
+            <div class="tabelle">
+              {maengel.map((m) => (
+                <button
+                  key={m.raum_id}
+                  class="tabellenzeile warn pruef-zeile"
+                  onClick={() => gehe({ name: 'raum', eid: m.einheit_id, rid: m.raum_id })}
+                >
+                  <span>
+                    {m.einheit_id} · {m.raum}
+                    {m.erledigt ? ' (erledigt)' : ''}
+                  </span>
+                  <span>{m.maengel.map((x) => x.text).join(' · ')}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {meldung && <Hinweis art={meldung.art}>{meldung.text}</Hinweis>}
 

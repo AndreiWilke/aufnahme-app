@@ -10,11 +10,14 @@ import {
   standardHoehen,
   standardLaengen,
   standardTiefen,
+  bautiefeAusTyp,
+  typSetzen,
 } from '../model';
 import { aendern, fotosEntfernen, fotosVon, gehe, planEinheit, S } from '../store';
 import { fotoPraefix } from '../fotos';
 import { Feld, FotoLeiste, Hinweis, JaNein, Kopf, StatusSchalter, Tasten, TextFeld, WahlMess, WahlText, WahlZahl, ZahlFeld } from './common';
 import { HilfeKnopf } from './hilfe';
+import { bautiefeHinweis, ventilFotoFehlt } from '../pruefung';
 import { fensterAufnehmen, heizflaecheAnlegen, raumFertig } from './raum';
 
 const ARTEN = Object.keys(ART_TEXT) as HfArt[];
@@ -51,6 +54,7 @@ export function HfSeite(props: { eid: string; rid: string; hfid: string }) {
   const fbh = h.art === 'fussbodenheizung';
   const glieder = h.art === 'glieder' || h.art === 'roehren';
   const nische = h.nische_vorhanden ?? (h.nische_mm.breite !== null || h.nische_mm.hoehe !== null);
+  const tiefeHinweis = bautiefeHinweis(h);
 
   return (
     <div>
@@ -71,6 +75,9 @@ export function HfSeite(props: { eid: string; rid: string; hfid: string }) {
             ziel={fotoZiel('Ventil')}
           />
         )}
+        {ventilFotoFehlt(h, fotosVon(a.einheit_id, h.hf_id).map((f) => f.rolle)) && (
+          <Hinweis art="warn">Noch kein Ventilfoto. Bitte das Ventilunterteil mit Prägung und Voreinstellung fotografieren.</Hinweis>
+        )}
         <FotoLeiste titel="Foto Seite/Typ" fotos={fotosVon(a.einheit_id, h.hf_id, 'Seite')} ziel={fotoZiel('Seite')} />
         <FotoLeiste titel="Weitere Fotos" fotos={fotosVon(a.einheit_id, h.hf_id, 'Weitere')} ziel={fotoZiel('Weitere')} />
 
@@ -80,7 +87,7 @@ export function HfSeite(props: { eid: string; rid: string; hfid: string }) {
 
         {h.art === 'platte' && (
           <Feld titel="Typ">
-            <Tasten werte={TYPEN} wert={h.typ} onWahl={(w) => set((x) => (x.typ = w))} />
+            <Tasten werte={TYPEN} wert={h.typ} onWahl={(w) => set((x) => typSetzen(x, w))} />
           </Feld>
         )}
 
@@ -92,9 +99,13 @@ export function HfSeite(props: { eid: string; rid: string; hfid: string }) {
             <Feld titel="Baulänge (mm)">
               <WahlMess wert={h.baulaenge_mm} werte={standardLaengen(h.art)} einheit="mm" onAendern={(m) => set((x) => (x.baulaenge_mm = m))} />
             </Feld>
-            <Feld titel="Bautiefe (mm)">
+            <Feld
+              titel="Bautiefe (mm)"
+              hinweis={bautiefeAusTyp(h) ? `Aus Typ ${h.typ} übernommen (geschätzt). Nur ändern, wenn die Tiefe abweicht.` : undefined}
+            >
               <WahlMess wert={h.bautiefe_mm} werte={standardTiefen(h.art)} einheit="mm" onAendern={(m) => set((x) => (x.bautiefe_mm = m))} />
             </Feld>
+            {tiefeHinweis && <Hinweis art="warn">{tiefeHinweis}</Hinweis>}
             {glieder && (
               <Feld titel="Gliederzahl">
                 <WahlZahl wert={h.gliederzahl} werte={GLIEDERZAHLEN} onAendern={(n) => set((x) => (x.gliederzahl = n))} />

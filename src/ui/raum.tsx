@@ -7,6 +7,7 @@ import { fotoPraefix } from '../fotos';
 import { isoJetzt, leerMesswert, uuid } from '../util';
 import { Feld, FotoLeiste, Hinweis, Kopf, StatusSchalter, Tasten, TextFeld, Thumb, WahlZahl, ZahlFeld, fotoZeigen } from './common';
 import { flaecheText, nutzungText, sollTempFuer, sollText } from './einheit';
+import { hfMangel, hfMangelText, raumMaengel } from '../pruefung';
 
 export function neueHeizflaeche(r: Raum, jetzt: string, vorlage?: Heizflaeche): Heizflaeche {
   const nr = r.heizflaechen.reduce((m, h) => Math.max(m, h.nr), 0) + 1;
@@ -92,6 +93,17 @@ export function fensterAufnehmen(eid: string, rid: string) {
 }
 
 export function raumFertig(eid: string, rid: string) {
+  const raum = S.aufnahmen.get(eid)!.raeume.find((x) => x.raum_id === rid)!;
+  const maengel = raumMaengel(raum);
+  if (
+    maengel.length &&
+    !confirm(
+      `In ${raum.nr} ${raum.name} sind Heizflächen unvollständig:\n\n${maengel.map((m) => '• ' + m.text).join('\n')}\n\nTrotzdem als erledigt markieren?`,
+    )
+  ) {
+    gehe({ name: 'raum', eid, rid });
+    return;
+  }
   aendern(eid, (a, jetzt) => {
     const r = a.raeume.find((x) => x.raum_id === rid)!;
     r.erledigt = true;
@@ -241,6 +253,7 @@ export function RaumSeite(props: { eid: string; rid: string }) {
       x.geaendert_am = jetzt;
     });
   const nutzungen = S.projekt?.nutzungsarten ?? [];
+  const maengel = raumMaengel(r);
   useEffect(() => {
     if (!zuFenstern) return;
     zuFenstern = false;
@@ -264,15 +277,23 @@ export function RaumSeite(props: { eid: string; rid: string }) {
         {r.zustand !== 'vorhanden' && <Hinweis art="warn">Raum ist als „{ZUSTAND_TEXT[r.zustand]}“ markiert.</Hinweis>}
 
         <h2>Heizflächen</h2>
+        {r.erledigt && maengel.length > 0 && (
+          <Hinweis art="warn">
+            Raum ist als erledigt markiert, aber {maengel.length === 1 ? 'eine Heizfläche ist' : `${maengel.length} Heizflächen sind`} unvollständig:{' '}
+            {maengel.map((m) => m.text).join(' · ')}
+          </Hinweis>
+        )}
         <div class="liste">
           {r.heizflaechen.map((h) => {
             const fotos = fotosVon(a.einheit_id, h.hf_id);
+            const mangel = hfMangel(h);
             return (
               <div key={h.hf_id} class="karte hf">
                 <button class="karte-klick" onClick={() => gehe({ name: 'hf', eid: a.einheit_id, rid: r.raum_id, hfid: h.hf_id })}>
                   <div class="karte-titel">
                     HK{h.nr} · {hfKurztext(h)}
                   </div>
+                  {mangel && <div class="karte-warnung">⚠ {hfMangelText(mangel)}</div>}
                 </button>
                 {fotos.length > 0 && (
                   <div class="fotoreihe">
