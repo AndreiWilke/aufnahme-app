@@ -10,6 +10,8 @@ import {
   standardHoehen,
   standardLaengen,
   standardTiefen,
+  bautiefeAusTyp,
+  typSetzen,
 } from '../model';
 import { aendern, fotosEntfernen, fotosVon, gehe, planEinheit, S } from '../store';
 import { fotoPraefix } from '../fotos';
@@ -85,7 +87,7 @@ export function HfSeite(props: { eid: string; rid: string; hfid: string }) {
 
         {h.art === 'platte' && (
           <Feld titel="Typ">
-            <Tasten werte={TYPEN} wert={h.typ} onWahl={(w) => set((x) => (x.typ = w))} />
+            <Tasten werte={TYPEN} wert={h.typ} onWahl={(w) => set((x) => typSetzen(x, w))} />
           </Feld>
         )}
 
@@ -97,7 +99,10 @@ export function HfSeite(props: { eid: string; rid: string; hfid: string }) {
             <Feld titel="Baulänge (mm)">
               <WahlMess wert={h.baulaenge_mm} werte={standardLaengen(h.art)} einheit="mm" onAendern={(m) => set((x) => (x.baulaenge_mm = m))} />
             </Feld>
-            <Feld titel="Bautiefe (mm)">
+            <Feld
+              titel="Bautiefe (mm)"
+              hinweis={bautiefeAusTyp(h) ? `Aus Typ ${h.typ} übernommen (geschätzt). Nur ändern, wenn die Tiefe abweicht.` : undefined}
+            >
               <WahlMess wert={h.bautiefe_mm} werte={standardTiefen(h.art)} einheit="mm" onAendern={(m) => set((x) => (x.bautiefe_mm = m))} />
             </Feld>
             {tiefeHinweis && <Hinweis art="warn">{tiefeHinweis}</Hinweis>}

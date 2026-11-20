@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { EinheitAufnahme, Heizflaeche, MessStatus, Raum } from '../src/model';
+import { bautiefeAusTyp, typSetzen } from '../src/model';
 import { bautiefeHinweis, exportMaengel, hfMangel, raumMaengel, ventilFotoFehlt } from '../src/pruefung';
 
 const mw = (wert: number | null, status: MessStatus | null = wert === null ? null : 'gemessen') => ({ wert, status });
@@ -155,5 +156,60 @@ describe('Bautiefe zum Typ', () => {
 
   it('geschätzte Tiefe wird ebenso geprüft', () => {
     expect(bautiefeHinweis(hf(1, { art: 'platte', typ: '22', bautiefe_mm: mw(50, 'geschätzt') }))).not.toBeNull();
+  });
+});
+
+describe('Bautiefe aus dem Typ', () => {
+  const platte = (teil: Partial<Heizflaeche> = {}) => hf(1, { art: 'platte', ...teil });
+
+  it('Typ wählen belegt die Tiefe als geschätzt vor', () => {
+    for (const [typ, tiefe] of [
+      ['10', 50],
+      ['11', 65],
+      ['20', 70],
+      ['21', 70],
+      ['22', 100],
+      ['33', 155],
+    ] as const) {
+      const h = platte();
+      typSetzen(h, typ);
+      expect(h.typ).toBe(typ);
+      expect(h.bautiefe_mm).toEqual({ wert: tiefe, status: 'geschätzt' });
+      expect(bautiefeAusTyp(h)).toBe(true);
+      expect(bautiefeHinweis(h)).toBeNull();
+    }
+  });
+
+  it('Typwechsel ersetzt die Vorbelegung, Abwählen leert sie', () => {
+    const h = platte();
+    typSetzen(h, '22');
+    typSetzen(h, '11');
+    expect(h.bautiefe_mm).toEqual({ wert: 65, status: 'geschätzt' });
+    typSetzen(h, null);
+    expect(h.bautiefe_mm).toEqual({ wert: null, status: null });
+  });
+
+  it('Typ unbekannt lässt die Tiefe leer', () => {
+    const h = platte();
+    typSetzen(h, 'unbekannt');
+    expect(h.bautiefe_mm).toEqual({ wert: null, status: null });
+  });
+
+  it('eine gemessene Tiefe bleibt stehen', () => {
+    const h = platte({ bautiefe_mm: mw(102) });
+    typSetzen(h, '22');
+    expect(h.bautiefe_mm).toEqual({ wert: 102, status: 'gemessen' });
+    typSetzen(h, '21');
+    expect(h.bautiefe_mm).toEqual({ wert: 102, status: 'gemessen' });
+    expect(bautiefeAusTyp(h)).toBe(false);
+    expect(bautiefeHinweis(h)).not.toBeNull();
+  });
+
+  it('nachgemessene Vorbelegung (Status gemessen) bleibt bei Typwechsel stehen', () => {
+    const h = platte();
+    typSetzen(h, '22');
+    h.bautiefe_mm.status = 'gemessen';
+    typSetzen(h, '33');
+    expect(h.bautiefe_mm).toEqual({ wert: 100, status: 'gemessen' });
   });
 });
