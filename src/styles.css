@@ -706,6 +706,23 @@ textarea.eingabe {
   color: var(--gelb);
 }
 
+/* Prüfübersicht vor dem Export: Zeile ist ein Knopf zum Raum */
+.tabellenzeile.pruef-zeile {
+  grid-template-columns: 1fr;
+  width: 100%;
+  text-align: left;
+  border: none;
+  font: inherit;
+  min-height: 44px;
+}
+
+.karte-warnung {
+  color: var(--gelb);
+  font-weight: 700;
+  font-size: 16px;
+  margin-top: 2px;
+}
+
 @media (max-width: 600px) {
   .tabellenzeile {
     grid-template-columns: 1fr auto;
