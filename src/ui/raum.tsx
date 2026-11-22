@@ -55,6 +55,7 @@ import {
   ZahlFeld,
   fotoZeigen,
 } from './common';
+import { hfMangel, hfMangelText, raumMaengel } from '../pruefung';
 import { flaecheText, heizflaecheFehltVermutlich, heizlastText, nutzungText, sollTempFuer, sollText } from './einheit';
 
 /** 2.55 → „2,55“ */
@@ -147,10 +148,20 @@ export function fensterAufnehmen(eid: string, rid: string) {
 }
 
 export function raumFertig(eid: string, rid: string) {
-  const r0 = S.aufnahmen.get(eid)!.raeume.find((x) => x.raum_id === rid)!;
+  const raum = S.aufnahmen.get(eid)!.raeume.find((x) => x.raum_id === rid)!;
+  const maengel = raumMaengel(raum);
+  if (
+    maengel.length &&
+    !confirm(
+      `In ${raum.nr} ${raum.name} sind Heizflächen unvollständig:\n\n${maengel.map((m) => '• ' + m.text).join('\n')}\n\nTrotzdem als erledigt markieren?`,
+    )
+  ) {
+    gehe({ name: 'raum', eid, rid });
+    return;
+  }
   let keine = false;
-  if (heizflaecheFehltVermutlich(r0)) {
-    if (!confirm(`Keine Heizfläche erfasst. ${heizlastText(r0.heizlast_w)}.
+  if (heizflaecheFehltVermutlich(raum)) {
+    if (!confirm(`Keine Heizfläche erfasst. ${heizlastText(raum.heizlast_w)}.
 
 OK: als „Keine Heizfläche“ abschließen
 Abbrechen: im Raum bleiben`))
@@ -463,6 +474,7 @@ export function RaumSeite(props: { eid: string; rid: string }) {
       x.geaendert_am = jetzt;
     });
   const nutzungen = S.projekt?.nutzungsarten ?? [];
+  const maengel = raumMaengel(r);
   useEffect(() => {
     if (!zuFenstern) return;
     zuFenstern = false;
@@ -524,15 +536,23 @@ Abbrechen: im Raum bleiben (Heizfläche erfassen oder „Keine Heizfläche“ an
         )}
 
         <h2>Heizflächen</h2>
+        {r.erledigt && maengel.length > 0 && (
+          <Hinweis art="warn">
+            Raum ist als erledigt markiert, aber {maengel.length === 1 ? 'eine Heizfläche ist' : `${maengel.length} Heizflächen sind`} unvollständig:{' '}
+            {maengel.map((m) => m.text).join(' · ')}
+          </Hinweis>
+        )}
         <div class="liste">
           {r.heizflaechen.map((h) => {
             const fotos = fotosVon(a.einheit_id, h.hf_id);
+            const mangel = hfMangel(h);
             return (
               <div key={h.hf_id} class="karte hf">
                 <button class="karte-klick" onClick={() => gehe({ name: 'hf', eid: a.einheit_id, rid: r.raum_id, hfid: h.hf_id })}>
                   <div class="karte-titel">
                     HK{h.nr} · {hfKurztext(h)}
                   </div>
+                  {mangel && <div class="karte-warnung">⚠ {hfMangelText(mangel)}</div>}
                 </button>
                 {fotos.length > 0 && (
                   <div class="fotoreihe">

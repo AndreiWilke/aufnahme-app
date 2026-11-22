@@ -107,8 +107,8 @@ const HOEHEN: Partial<Record<HfArt, number[]>> = {
   konvektor: [70, 90, 110, 140, 210, 280],
 };
 const TIEFEN: Partial<Record<HfArt, number[]>> = {
-  // Platte: Typ 10/11 etwa 65, Typ 20/21 etwa 70–80, Typ 22 100, Typ 33 155
-  platte: [50, 65, 80, 100, 155],
+  // Platte: Typ 10 etwa 50, Typ 11 etwa 65, Typ 20/21 etwa 70–80, Typ 22 100, Typ 33 155
+  platte: [50, 65, 70, 80, 100, 155],
   // DIN 4703: 70 (nur Guss), 110, 160, 220, 250
   glieder: [70, 110, 160, 220, 250],
   // 2- bis 6-Säuler
@@ -130,6 +130,27 @@ export function standardLaengen(art: HfArt | null): number[] {
 export function standardTiefen(art: HfArt | null): number[] {
   return (art && TIEFEN[art]) || TIEFEN.platte!;
 }
+/** Übliche Bautiefe einer Plattenheizung je Typ (mm). Wird beim Wählen des Typs als „geschätzt“ vorbelegt. */
+export const TYP_BAUTIEFE: Partial<Record<HfTyp, number>> = { '10': 50, '11': 65, '20': 70, '21': 70, '22': 100, '33': 155 };
+
+/** true, wenn die Bautiefe genau der Vorbelegung aus dem Typ entspricht (geschätzt, nicht nachgemessen). */
+export function bautiefeAusTyp(h: Heizflaeche): boolean {
+  const v = h.typ ? TYP_BAUTIEFE[h.typ] : undefined;
+  return v !== undefined && h.bautiefe_mm.status === 'geschätzt' && h.bautiefe_mm.wert === v;
+}
+
+/**
+ * Typ setzen und die Bautiefe passend vorbelegen (Status „geschätzt“). Eine selbst eingetragene Tiefe
+ * bleibt stehen; ersetzt wird nur eine leere Tiefe oder die Vorbelegung des bisherigen Typs.
+ */
+export function typSetzen(h: Heizflaeche, typ: HfTyp | null): void {
+  const automatisch = h.bautiefe_mm.wert === null || bautiefeAusTyp(h);
+  h.typ = typ;
+  if (!automatisch) return;
+  const neu = typ ? TYP_BAUTIEFE[typ] : undefined;
+  h.bautiefe_mm = neu === undefined ? { wert: null, status: null } : { wert: neu, status: 'geschätzt' };
+}
+
 export const GLIEDERZAHLEN = [4, 5, 6, 7, 8, 9, 10, 12, 14, 15, 16, 18, 20, 22, 24, 25, 30];
 export const VENTIL_HERSTELLER = ['Heimeier', 'Danfoss', 'Oventrop', 'Honeywell/MNG', 'Herz', 'Kermi', 'Buderus', 'nicht lesbar'];
 export const VOREINSTELLUNGEN = ['1', '2', '3', '4', '5', '6', '7', '8', 'N'];
