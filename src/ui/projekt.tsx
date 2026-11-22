@@ -3,12 +3,16 @@ import { STATUS_TEXT } from '../model';
 import { fotosDerEinheit, gehe, projektSchliessen, S } from '../store';
 import { hatUnexportierteAenderungen } from '../export';
 import { formatDatum, formatZeit } from '../util';
+import { annahmenFortschritt } from '../annahmen';
 import { Hinweis, Kopf } from './common';
 
 export function fortschritt(a: EinheitAufnahme) {
   const vorhanden = a.raeume.filter((r) => r.zustand === 'vorhanden');
   const pp = a.pruefpunkte ?? [];
+  const an = annahmenFortschritt(a, S.projekt?.einheiten.find((e) => e.einheit_id === a.einheit_id));
   return {
+    anGeprueft: an.geprueft,
+    anGesamt: an.gesamt,
     erledigt: vorhanden.filter((r) => r.erledigt).length,
     gesamt: vorhanden.length,
     hk: a.raeume.reduce((s, r) => s + r.heizflaechen.length, 0),
@@ -56,7 +60,8 @@ export function EinheitKarte(props: { pe: PlanEinheit; a: EinheitAufnahme }) {
         {pe.art === 'heizzentrale'
           ? `${a.heizzentrale?.punkte.filter((p) => p.geaendert_am).length ?? 0}/${a.heizzentrale?.punkte.length ?? 0} Punkte · ${a.heizzentrale?.abgaenge.length ?? 0} Abgänge`
           : `Räume ${f.erledigt}/${f.gesamt} · ${f.hk} Heizflächen`}
-        {f.ppGesamt > 0 && ` · Prüfpunkte ${f.ppErledigt}/${f.ppGesamt}`}{' '}
+        {f.ppGesamt > 0 && ` · Prüfpunkte ${f.ppErledigt}/${f.ppGesamt}`}
+        {f.anGesamt > 0 && ` · Annahmen ${f.anGeprueft}/${f.anGesamt} geprüft`}{' '}
         · {fotos.length} Fotos
       </div>
       {unexp ? (

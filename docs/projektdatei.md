@@ -62,6 +62,9 @@ dem iPad über „Projektdatei (JSON) laden“ aus OneDrive geöffnet.
 | `raeume[].soll_temp_c` | Zahl oder `null` | `null` wird als „–“ angezeigt; im Export leer |
 | `raeume[].quelle` | Herkunft der Plandaten | klein unter dem Raumnamen; nicht im Export |
 | `raeume[].heizlast_w` (seit 1.5.0) | Norm-Heizlast aus der Vorberechnung in W, Zahl oder `null` (unbeheizt), kann negativ sein | im Raum klein unter der Fläche: „Heizlast lt. Vorberechnung: 1.209 W (vorläufig)“, negativ „kein Wärmebedarf (Innenraum)“, `null` ohne Anzeige; Summe in der Raumliste. Nur Anzeige, keine eigene Berechnung, nicht im Export |
+| `einheiten[].pruefpunkte[].annahme` (seit 1.6.0) | `{ text, wert, einheit, status: "D" \| "A" \| "S", quelle }` oder `null` (reine Frage) | über den Eingaben „Angenommen: <text> (<status>, <quelle>)“ und die Knöpfe passt / ändern / unklar. Bei `typ = "zahl"` übernimmt „passt“ `wert`, „ändern“ füllt das Zahlenfeld damit vor |
+| `raeume[].annahmen` (seit 1.6.0) | `{ lichte_hoehe_m: { wert, status, quelle }, beheizt: { wert: true \| false, status, quelle } }`, beide optional | im Raum oben je eine Zeile mit passt / ändern / unklar und der Knopf „Raum wie angenommen“. Ohne Annahme bleiben die Felder lichte Höhe und beheizt aus 1.5.0 |
+| `raeume[].fenster_plan[]` (seit 1.6.0) | `{ id, typ: "fenster" \| "fenstertuer" \| "ladenfront", bezeichnung, orientierung, breite_m, hoehe_m, anzahl, breite_status, hoehe_status, quelle, verglasung, erneuert: "ja" \| "nein" \| "unklar", baujahr, bestand_status }`, `id` im Projekt eindeutig | im Abschnitt Fenster zuerst die Liste „Laut Plan“ (Bezeichnung, Orientierung, „1,59 × 1,75 m“, Bestand, Status klein) mit passt / ändern / nicht vorhanden / unklar. „ändern“ legt einen vorbefüllten Fenster-Datensatz an |
 | `einheiten[].pruefpunkte[]` (seit 1.5.0) | `{ id, ort, text, typ: "text" \| "zahl", einheit: "m" \| null, wirkung, quelle }`, `id` im Projekt eindeutig, nur `A-Z a-z 0-9 -` | einklappbare Liste „Prüfpunkte 2/4“ unter dem Hinweis der Einheit (auch Heizzentrale). Antwort ja/nein/unklar, bei `typ = "zahl"` Wert mit Einheit und gemessen/geschätzt, Notiz, Fotos, „erledigt“. `quelle` nur intern |
 
 ## Ersatzwohnung
@@ -97,17 +100,22 @@ Einstellungen → „Neuere Projektdatei einspielen“. Zuordnung über Einheit-
 - Prüfpunkte werden über ihre `id` zugeordnet: Antworten bleiben, der Text wird aktualisiert, neue kommen dazu,
   entfallene **mit** Antwort bleiben und werden als „nicht mehr in der Projektdatei“ markiert, entfallene ohne
   Antwort werden entfernt,
+- Prüfungen der Annahmen (seit 1.6.0) bleiben über Prüfpunkt-ID, Raum-ID und `fenster_plan[].id` erhalten. Hat sich
+  eine Annahme geändert, wird „passt“ zurückgesetzt und der Punkt als „Annahme geändert, neu prüfen“ markiert;
+  „ändern“ behält den eingegebenen Wert (Einzelheiten in `docs/export.md`),
 - entfallene Räume oder Einheiten **mit** Aufnahmen bleiben erhalten und werden als „nicht mehr im Plan“ markiert,
   entfallene ohne Aufnahmen werden entfernt.
 
-Ein Projekt, das mit Version 1.4 oder älter geladen wurde, liest die App beim ersten Öffnen mit 1.5.0 einmal neu
-aus der gespeicherten Projektdatei ein (wie „Neuere Fassung einspielen“). Damit erscheinen Prüfpunkte und Heizlast,
-die Aufnahmen bleiben erhalten.
+Ein Projekt, das mit einer älteren Version geladen wurde (bis 1.5), liest die App beim ersten Öffnen mit 1.6.0 einmal
+neu aus der gespeicherten Projektdatei ein (wie „Neuere Fassung einspielen“). Damit erscheinen Prüfpunkte, Heizlast,
+Annahmen und Fenster laut Plan, die Aufnahmen bleiben erhalten.
 
 ## Automatische Prüfung
 `npm test` prüft die Beispieldatei und zusätzlich jede lokal vorhandene `data/*.objekt.json` (Raum-IDs und
 Prüfpunkt-IDs eindeutig und nur `A-Z a-z 0-9 -`, jede Nutzung vorhanden, Heizzentrale ohne Räume, `heizlast_w` und
-Prüfpunkte vollständig übernommen, lädt ohne Warnung). Ältere Fassungen unter `data/alt/` werden nicht geprüft.
-Für `ismaninger136.objekt.json` (Fassung 2) zusätzlich: 47 Einheiten, 295 Räume, 168 Prüfpunkte, `ALLG` mit 13
+Prüfpunkte vollständig übernommen, Annahmen und Fenster laut Plan vollständig übernommen, Fenster-IDs eindeutig,
+lädt ohne Warnung). Ältere Fassungen unter `data/alt/` werden nicht geprüft.
+Für `ismaninger136.objekt.json` (Fassung 3) zusätzlich: 47 Einheiten, 295 Räume, 278 Prüfpunkte, 226 Fenster laut
+Plan in 136 Räumen, `ALLG` mit 13
 Räumen und 12 Prüfpunkten, Freitag Heizzentrale/`ALLG`/Gewerbe, Samstag Wohnungen und `ALLG-1OG` bis `ALLG-4OG`.
 Auf GitHub liegt nur die Beispieldatei.

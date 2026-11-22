@@ -28,6 +28,9 @@ export async function projektdateiEinlesen(text: string): Promise<string> {
   return (
     `Neue Fassung eingespielt (${p.einheiten.length} Einheiten, ${raeume} Räume${ppText}). Neue Einheiten: ${erg.neueEinheiten}, neue Räume: ${erg.neueRaeume}` +
     (erg.neuePruefpunkte ? `, neue Prüfpunkte: ${erg.neuePruefpunkte}` : '') +
+    (erg.annahmenZurueckgesetzt
+      ? `, geänderte Annahmen (Bestätigung „passt“ zurückgesetzt, neu prüfen): ${erg.annahmenZurueckgesetzt}`
+      : '') +
     (erg.entfalleneRaeumeBehalten ? `, entfallene Räume mit Aufnahmen behalten: ${erg.entfalleneRaeumeBehalten}` : '') +
     (erg.entfalleneEinheitenBehalten ? `, entfallene Einheiten mit Aufnahmen behalten: ${erg.entfalleneEinheitenBehalten}` : '') +
     `.${warnText}`

@@ -5,6 +5,7 @@ import { aendern, fotosDerEinheit, gehe, planEinheit, S } from '../store';
 import { Feld, Hinweis, JaNein, Kopf, Tasten, TextFeld, ZahlFeld } from './common';
 import { PlanKnopf } from './plan';
 import { fortschritt } from './projekt';
+import { raumAnnahmenOffen } from '../annahmen';
 import { PruefpunkteListe } from './pruefpunkte';
 
 export function nutzungText(schluessel: string): string {
@@ -144,6 +145,7 @@ export function RaumHinzufuegen(props: { eid: string; onFertig?: (rid: string) =
 
 function RaumZeile(props: { eid: string; r: Raum }) {
   const { r } = props;
+  const offen = raumAnnahmenOffen(r, planEinheit(props.eid)?.raeume.find((x) => x.raum_id === r.raum_id));
   const fotos = fotosDerEinheit(props.eid).filter(
     (f) => r.heizflaechen.some((h) => h.hf_id === f.bezug_id) || r.fenster.some((x) => x.fenster_id === f.bezug_id) || f.bezug_id === r.raum_id,
   ).length;
@@ -164,6 +166,7 @@ function RaumZeile(props: { eid: string; r: Raum }) {
       </span>
       <span class="raum-zahlen">
         {r.heizflaechen.length === 0 && r.keine_heizflaeche ? <span class="keine-hf">keine HF</span> : `${r.heizflaechen.length} HK`} · {fotos} 📷
+        {offen > 0 && <span class="annahmen-offen"> · {offen} Annahmen offen</span>}
       </span>
     </button>
   );
@@ -261,6 +264,12 @@ export function EinheitSeite(props: { eid: string }) {
         <h2>
           Räume <span class="tag-zaehler">{f.erledigt}/{f.gesamt} erledigt · {f.hk} Heizflächen · {fotoAnzahl} Fotos</span>
         </h2>
+        {f.anGesamt > 0 && (
+          <div class="annahmen-zaehler">
+            Annahmen {f.anGeprueft}/{f.anGesamt} geprüft
+            <span class="feld-hinweis"> (Prüfpunkte, lichte Höhe, beheizt, Fenster laut Plan)</span>
+          </div>
+        )}
         {summe !== null && (
           <div class="raum-heizlast">
             Heizlast lt. Vorberechnung, Summe der Räume: {wattText(summe)} W (vorläufig)

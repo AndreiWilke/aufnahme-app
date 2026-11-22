@@ -1041,3 +1041,79 @@ textarea.eingabe {
   background: rgba(45, 111, 69, 0.1);
   font-weight: 800;
 }
+
+/* ---------- 1.6.0: Annahmen bestätigen ---------- */
+.annahme-zeile {
+  margin: 6px 0 8px;
+  font-size: 1rem;
+}
+.annahme-titel {
+  font-weight: 600;
+  color: var(--text2);
+}
+.annahme-quelle {
+  font-size: 0.85rem;
+  color: var(--text2);
+}
+.annahme-name {
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+.annahme-knoepfe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+}
+.knopf.annahme-knopf {
+  flex: 1 1 120px;
+  min-height: var(--tap);
+  font-size: 1.05rem;
+}
+.knopf.annahme-knopf.aktiv {
+  color: #fff;
+  border-color: transparent;
+}
+.knopf.annahme-bestaetigt.aktiv {
+  background: var(--gruen);
+}
+.knopf.annahme-geaendert.aktiv {
+  background: var(--blau);
+}
+.knopf.annahme-unklar.aktiv,
+.knopf.annahme-nicht_vorhanden.aktiv {
+  background: var(--gelb);
+}
+.status-bestaetigt {
+  font-size: 0.85rem;
+  color: var(--gruen);
+  font-weight: 600;
+  margin-right: 6px;
+  align-self: center;
+}
+.wie-angenommen {
+  width: 100%;
+  margin-bottom: 4px;
+}
+.plan-fenster-kopf {
+  margin-bottom: 2px;
+}
+.plan-fenster-ort {
+  color: var(--text2);
+}
+.plan-fenster-mass {
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+}
+.plan-fenster-bestand {
+  color: var(--text2);
+}
+.pp-annahmen,
+.annahmen-offen {
+  color: var(--text2);
+  font-weight: normal;
+}
+.annahmen-zaehler {
+  margin: 0 0 8px;
+  font-weight: 600;
+}

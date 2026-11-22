@@ -1,10 +1,14 @@
 // Datenmodell der Aufnahme. Entspricht UEBERGABE.md Abschnitt 5 (aufnahme.json, schema_version 1).
 // Feldwerte sind feste Schlüssel; die deutschen Anzeigetexte stehen in den *_TEXT-Tabellen.
 
-export const APP_VERSION = '1.5.0';
+export const APP_VERSION = '1.6.0';
 export const SCHEMA_VERSION = 1;
 
-export type MessStatus = 'gemessen' | 'geschätzt';
+/**
+ * gemessen / geschätzt: vor Ort ermittelt. bestätigt (seit 1.6.0): Annahme aus der Projektdatei vor Ort mit „passt“
+ * bestätigt, der Wert ist die Annahme.
+ */
+export type MessStatus = 'gemessen' | 'geschätzt' | 'bestätigt';
 
 /** Ein Messwert mit Datenstatus. Ist wert null, ist auch status null. */
 export interface Messwert {
@@ -40,6 +44,25 @@ export type Antwort = 'ja' | 'nein' | 'unklar';
 export type FensterArt = 'fenster' | 'fenstertuer' | 'ladenfront' | 'dachfenster';
 
 export const ANTWORTEN: Antwort[] = ['ja', 'nein', 'unklar'];
+
+/** Seit 1.6.0: Ergebnis der Prüfung einer Annahme aus der Projektdatei (passt / ändern / unklar). */
+export type Bestaetigung = 'bestaetigt' | 'geaendert' | 'unklar';
+/** Fenster laut Plan: zusätzlich „nicht vorhanden“. */
+export type FensterPlanBestaetigung = Bestaetigung | 'nicht_vorhanden';
+
+export const BESTAETIGUNG_TEXT: Record<FensterPlanBestaetigung, string> = {
+  bestaetigt: 'passt',
+  geaendert: 'ändern',
+  unklar: 'unklar',
+  nicht_vorhanden: 'nicht vorhanden',
+};
+
+/** Datenstatus einer Annahme laut Projektdatei. */
+export const ANNAHME_STATUS_TEXT: Record<string, string> = {
+  D: 'aus Dokument',
+  A: 'aus Plan/Ansicht',
+  S: 'geschätzt',
+};
 
 export const FENSTER_ART_TEXT: Record<FensterArt, string> = {
   fenster: 'Fenster',
@@ -189,8 +212,28 @@ export interface Fenster {
   baujahr?: number | null;
   /** Fotos „Fenster“ und „Glasstempel“ (am Dateinamen zu unterscheiden). */
   fotos: string[];
+  /** Seit 1.6.0: Fenster laut Plan, zu dem dieser Datensatz gehört („ändern“). Fehlt bei zusätzlichen Fenstern. */
+  fenster_plan_id?: string | null;
   geaendert_am: string | null;
 }
+
+/** Seit 1.6.0: Prüfung eines Fensters laut Plan. „passt“ legt keinen Fenster-Datensatz an. */
+export interface FensterPlanPruefung {
+  /** fenster_plan[].id aus der Projektdatei */
+  id: string;
+  bestaetigung: FensterPlanBestaetigung | null;
+  /** fenster_id des Fenster-Datensatzes bei „ändern“, sonst null */
+  fenster_id: string | null;
+  /** Stand der Annahme bei der Bestätigung (intern, zum Erkennen geänderter Annahmen beim Einspielen). */
+  stand?: string;
+  /** Annahme hat sich beim Einspielen geändert, „passt“ wurde zurückgesetzt. */
+  annahme_geaendert?: boolean;
+  /** Fenster fehlt in einer neueren Projektdatei, die Prüfung bleibt. */
+  im_plan_entfallen?: boolean;
+  geaendert_am: string | null;
+}
+
+export type RaumAnnahmeSchluessel = 'lichte_hoehe_m' | 'beheizt';
 
 export interface Raum {
   raum_id: string;
@@ -215,6 +258,14 @@ export interface Raum {
   lichte_hoehe_m?: Messwert;
   /** Seit 1.5.0: Wird der Raum vor Ort beheizt? */
   beheizt_vor_ort?: Antwort | null;
+  /** Seit 1.6.0: Prüfung der Raum-Annahmen (lichte Höhe, beheizt). Werte stehen in lichte_hoehe_m und beheizt_vor_ort. */
+  annahmen_bestaetigung?: Record<RaumAnnahmeSchluessel, Bestaetigung | null>;
+  /** Intern: Stand der Annahme bei der Bestätigung. */
+  annahmen_stand?: Partial<Record<RaumAnnahmeSchluessel, string>>;
+  /** Intern: Annahme beim Einspielen geändert, „passt“ zurückgesetzt. */
+  annahmen_geaendert?: Partial<Record<RaumAnnahmeSchluessel, boolean>>;
+  /** Seit 1.6.0: Prüfung der Fenster laut Plan, eine je fenster_plan[].id. */
+  fenster_plan_bestaetigung?: FensterPlanPruefung[];
   /** true, wenn der Raum in einer neueren Projektdatei nicht mehr vorkommt, aber Aufnahmen hat. */
   im_plan_entfallen?: boolean;
   /** Nutzung laut Projektdatei, um beim Einspielen eine geänderte Nutzung nicht zu überschreiben. */
@@ -263,6 +314,12 @@ export interface Pruefpunkt {
   erledigt: boolean;
   /** true, wenn der Prüfpunkt in einer neueren Projektdatei fehlt, aber Antworten hat. */
   im_plan_entfallen?: boolean;
+  /** Seit 1.6.0: Prüfung der Annahme (nur bei Prüfpunkten mit annahme). */
+  bestaetigung?: Bestaetigung | null;
+  /** Intern: Stand der Annahme bei der Bestätigung. */
+  annahme_stand?: string;
+  /** Intern: Annahme beim Einspielen geändert, „passt“ zurückgesetzt. */
+  annahme_geaendert?: boolean;
   geaendert_am: string | null;
 }
 
@@ -319,6 +376,44 @@ export interface PlanRaum {
   soll_temp_c: number | null;
   quelle?: string;
   heizlast_w?: number | null;
+  /** Seit 1.6.0: Annahmen des Rechenmodells für diesen Raum. */
+  annahmen?: PlanRaumAnnahmen;
+  /** Seit 1.6.0: Fenster laut Plan. */
+  fenster_plan?: PlanFenster[];
+}
+
+/** Datenstatus laut Projektdatei: D (Dokument), A (aus Plan/Ansicht abgeleitet), S (geschätzt). */
+export type AnnahmeStatus = string;
+
+export interface PlanRaumAnnahmen {
+  lichte_hoehe_m?: { wert: number; status: AnnahmeStatus; quelle: string };
+  beheizt?: { wert: boolean; status: AnnahmeStatus; quelle: string };
+}
+
+export interface PlanFenster {
+  id: string;
+  typ: FensterArt;
+  bezeichnung: string;
+  orientierung: string;
+  breite_m: number | null;
+  hoehe_m: number | null;
+  anzahl: number | null;
+  breite_status: AnnahmeStatus;
+  hoehe_status: AnnahmeStatus;
+  quelle: string;
+  verglasung: string;
+  erneuert: Antwort | null;
+  baujahr: number | null;
+  bestand_status: AnnahmeStatus;
+}
+
+/** Annahme an einem Prüfpunkt. */
+export interface PlanAnnahme {
+  text: string;
+  wert: number | null;
+  einheit: string | null;
+  status: AnnahmeStatus;
+  quelle: string;
 }
 
 /** Prüfpunkt laut Projektdatei. */
@@ -330,6 +425,8 @@ export interface PlanPruefpunkt {
   einheit: string | null;
   wirkung: string;
   quelle: string;
+  /** Seit 1.6.0: Annahme des Rechenmodells. null: reine Frage. */
+  annahme?: PlanAnnahme | null;
 }
 
 export interface PlanEinheit {

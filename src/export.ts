@@ -12,6 +12,7 @@ import type {
 } from './model';
 import { APP_VERSION, HZ_PUNKTE, SCHEMA_VERSION } from './model';
 import { dateiZeit, isoJetzt, zeitVergleich } from './util';
+import { raumBestaetigung } from './annahmen';
 
 export type ExportArt = 'komplett' | 'delta';
 
@@ -70,6 +71,19 @@ export function raumZusatz(r: Raum) {
   };
 }
 
+// Ergänzungen 1.6.0: Prüfung der Annahmen (passt / ändern / unklar).
+export function raumAnnahmenExport(r: Raum) {
+  return {
+    annahmen_bestaetigung: raumBestaetigung(r),
+    fenster_plan_bestaetigung: (r.fenster_plan_bestaetigung ?? []).map((e) => ({
+      id: e.id,
+      bestaetigung: e.bestaetigung,
+      fenster_id: e.bestaetigung === 'geaendert' ? e.fenster_id : null,
+      geaendert_am: e.geaendert_am,
+    })),
+  };
+}
+
 export function pruefpunktExport(q: Pruefpunkt) {
   return {
     id: q.id,
@@ -79,6 +93,7 @@ export function pruefpunktExport(q: Pruefpunkt) {
     notiz: q.notiz,
     fotos: [...q.fotos],
     erledigt: q.erledigt,
+    bestaetigung: q.bestaetigung ?? null,
     geaendert_am: q.geaendert_am,
   };
 }
@@ -119,9 +134,11 @@ export function einheitExport(a: EinheitAufnahme) {
         art: f.art ?? null,
         erneuert: f.erneuert ?? null,
         baujahr: f.baujahr ?? null,
+        fenster_plan_id: f.fenster_plan_id ?? null,
         geaendert_am: f.geaendert_am,
       })),
       ...raumZusatz(r),
+      ...raumAnnahmenExport(r),
       geaendert_am: r.geaendert_am,
     })),
     heizzentrale: a.heizzentrale
@@ -222,6 +239,7 @@ export function csvDateien(projekt: Projekt, aufnahmen: EinheitAufnahme[]): Reco
   const fenster: Zelle[][] = [];
   const hz: Zelle[][] = [];
   const pp: Zelle[][] = [];
+  const fensterPlan: Zelle[][] = [];
 
   for (const a of aufnahmen) {
     const ppPlan = new Map((plan.get(a.einheit_id)?.pruefpunkte ?? []).map((d) => [d.id, d]));
@@ -231,15 +249,27 @@ export function csvDateien(projekt: Projekt, aufnahmen: EinheitAufnahme[]): Reco
       pp.push([
         a.einheit_id, q.id, d?.ort, q.text, d?.typ, q.antwort, q.wert.wert, d?.einheit, q.wert.status,
         q.notiz, q.erledigt, q.fotos.join(', '), q.geaendert_am,
+        q.bestaetigung, d?.annahme?.text, d?.annahme?.wert, d?.annahme?.status,
       ]);
     }
+    const raumPlan = new Map((plan.get(a.einheit_id)?.raeume ?? []).map((r) => [r.raum_id, r]));
     for (const r of a.raeume) {
       const z = raumZusatz(r);
+      const b = raumAnnahmenExport(r);
+      const pf = new Map((raumPlan.get(r.raum_id)?.fenster_plan ?? []).map((f) => [f.id, f]));
+      for (const e of b.fenster_plan_bestaetigung) {
+        const f = pf.get(e.id);
+        fensterPlan.push([
+          a.einheit_id, r.raum_id, e.id, f?.bezeichnung, f?.orientierung, f?.breite_m, f?.hoehe_m, f?.anzahl,
+          e.bestaetigung, e.fenster_id, e.geaendert_am,
+        ]);
+      }
       raeume.push([
         a.einheit_id, r.raum_id, r.nr, r.name, r.nutzung, r.flaeche_plan_m2, r.soll_temp_c, r.herkunft,
         r.zustand, r.erledigt, r.heizflaechen.length, r.fenster.reduce((s, f) => s + (f.anzahl ?? 0), 0),
         r.im_plan_entfallen ?? false, r.notiz, r.geaendert_am,
         z.keine_heizflaeche, z.lichte_hoehe_m.wert, z.lichte_hoehe_m.status, z.beheizt_vor_ort,
+        b.annahmen_bestaetigung.lichte_hoehe_m, b.annahmen_bestaetigung.beheizt,
       ]);
       for (const h0 of r.heizflaechen) {
         const h = hfExport(h0);
@@ -255,7 +285,7 @@ export function csvDateien(projekt: Projekt, aufnahmen: EinheitAufnahme[]): Reco
         fenster.push([
           a.einheit_id, r.raum_id, r.name, f.fenster_id, f.anzahl, f.verglasung, f.rahmen, f.breite_mm, f.hoehe_mm,
           f.breite_mm === null && f.hoehe_mm === null ? null : (f.masse_status ?? 'gemessen'), f.fotos.join(', '), f.geaendert_am,
-          f.art ?? null, f.erneuert ?? null, f.baujahr ?? null,
+          f.art ?? null, f.erneuert ?? null, f.baujahr ?? null, f.fenster_plan_id ?? null,
         ]);
       }
     }
@@ -287,7 +317,8 @@ export function csvDateien(projekt: Projekt, aufnahmen: EinheitAufnahme[]): Reco
     'raeume.csv': csv(
       ['einheit_id', 'raum_id', 'nr', 'name', 'nutzung', 'flaeche_plan_m2', 'soll_temp_c', 'herkunft', 'zustand',
         'erledigt', 'anzahl_heizflaechen', 'anzahl_fenster', 'im_plan_entfallen', 'notiz', 'geaendert_am',
-        'keine_heizflaeche', 'lichte_hoehe_m', 'lichte_hoehe_status', 'beheizt_vor_ort'],
+        'keine_heizflaeche', 'lichte_hoehe_m', 'lichte_hoehe_status', 'beheizt_vor_ort',
+        'lichte_hoehe_bestaetigung', 'beheizt_bestaetigung'],
       raeume,
     ),
     'heizflaechen.csv': csv(
@@ -299,7 +330,7 @@ export function csvDateien(projekt: Projekt, aufnahmen: EinheitAufnahme[]): Reco
     ),
     'fenster.csv': csv(
       ['einheit_id', 'raum_id', 'raum_name', 'fenster_id', 'anzahl', 'verglasung', 'rahmen', 'breite_mm', 'hoehe_mm',
-        'masse_status', 'fotos', 'geaendert_am', 'art', 'erneuert', 'baujahr'],
+        'masse_status', 'fotos', 'geaendert_am', 'art', 'erneuert', 'baujahr', 'fenster_plan_id'],
       fenster,
     ),
     'heizzentrale.csv': csv(
@@ -309,8 +340,13 @@ export function csvDateien(projekt: Projekt, aufnahmen: EinheitAufnahme[]): Reco
     ),
     'pruefpunkte.csv': csv(
       ['einheit_id', 'pruefpunkt_id', 'ort', 'text', 'typ', 'antwort', 'wert', 'wert_einheit', 'status', 'notiz',
-        'erledigt', 'fotos', 'geaendert_am'],
+        'erledigt', 'fotos', 'geaendert_am', 'bestaetigung', 'annahme_text', 'annahme_wert', 'annahme_status'],
       pp,
+    ),
+    'fenster_plan.csv': csv(
+      ['einheit_id', 'raum_id', 'fenster_plan_id', 'bezeichnung', 'orientierung', 'breite_m', 'hoehe_m', 'anzahl',
+        'bestaetigung', 'fenster_id', 'geaendert_am'],
+      fensterPlan,
     ),
   };
 }

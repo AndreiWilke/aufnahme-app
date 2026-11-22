@@ -1,8 +1,20 @@
 import { useEffect, useState } from 'preact/hooks';
-import type { EinheitAufnahme, Fenster, Heizflaeche, Raum, RaumZustand } from '../model';
+import type {
+  Bestaetigung,
+  EinheitAufnahme,
+  Fenster,
+  FensterPlanBestaetigung,
+  Heizflaeche,
+  PlanFenster,
+  PlanRaum,
+  Raum,
+  RaumAnnahmeSchluessel,
+  RaumZustand,
+} from '../model';
 import {
   ANTWORTEN,
   ART_TEXT,
+  BESTAETIGUNG_TEXT,
   BALKONTUER_STANDARD,
   FENSTER_ART_TEXT,
   FENSTER_BREITEN,
@@ -13,11 +25,36 @@ import {
   VERGLASUNG_TEXT,
   ZUSTAND_TEXT,
 } from '../model';
-import { aendern, fotosVon, gehe, planEinheit, S } from '../store';
+import { aendern, fotosEntfernen, fotosVon, gehe, planEinheit, S } from '../store';
+import {
+  fensterDatensatzEntfernt,
+  fensterPlanPruefen,
+  fensterPlanPruefung,
+  nachVorbefuellung,
+  raumAnnahmePruefen,
+  raumAnnahmenOffen,
+  raumBestaetigung,
+  raumWieAngenommen,
+} from '../annahmen';
 import { PlanKnopf } from './plan';
 import { fotoPraefix } from '../fotos';
 import { isoJetzt, leerMesswert, uuid } from '../util';
-import { Feld, FotoLeiste, Hinweis, Kopf, StatusSchalter, Tasten, TextFeld, Thumb, WahlMess, WahlZahl, ZahlFeld, fotoZeigen } from './common';
+import {
+  AnnahmeKnoepfe,
+  AnnahmeZeile,
+  Feld,
+  FotoLeiste,
+  Hinweis,
+  Kopf,
+  StatusSchalter,
+  Tasten,
+  TextFeld,
+  Thumb,
+  WahlMess,
+  WahlZahl,
+  ZahlFeld,
+  fotoZeigen,
+} from './common';
 import { flaecheText, heizflaecheFehltVermutlich, heizlastText, nutzungText, sollTempFuer, sollText } from './einheit';
 
 /** 2.55 → „2,55“ */
@@ -97,7 +134,9 @@ let zuFenstern = false;
 /** Von der Heizfläche weiter zu den Fenstern des Raums. Legt das erste Fenster gleich an. */
 export function fensterAufnehmen(eid: string, rid: string) {
   const r = S.aufnahmen.get(eid)!.raeume.find((x) => x.raum_id === rid)!;
-  if (r.fenster.length === 0)
+  const plan = planEinheit(eid)?.raeume.find((x) => x.raum_id === rid)?.fenster_plan ?? [];
+  // Mit Fenstern laut Plan nichts anlegen: dort genügt „passt“.
+  if (r.fenster.length === 0 && plan.length === 0)
     aendern(eid, (a, jetzt) => {
       const x = a.raeume.find((q) => q.raum_id === rid)!;
       x.fenster.push(leeresFenster(jetzt, a));
@@ -144,7 +183,7 @@ export function hfKurztext(h: Heizflaeche): string {
   return teile.join(' · ');
 }
 
-function FensterBlock(props: { a: EinheitAufnahme; r: Raum; f: Fenster; index: number }) {
+function FensterBlock(props: { a: EinheitAufnahme; r: Raum; f: Fenster; titel: string }) {
   const { a, r, f } = props;
   const set = (fn: (x: Fenster) => void) =>
     aendern(a.einheit_id, (au, jetzt) => {
@@ -180,14 +219,15 @@ function FensterBlock(props: { a: EinheitAufnahme; r: Raum; f: Fenster; index: n
   return (
     <div class="block fenster">
       <div class="block-kopf">
-        <h3>Fenster {props.index + 1}</h3>
+        <h3>{props.titel}</h3>
         <button
           class="knopf klein gefahr"
           onClick={() => {
-            if (!confirm('Diese Fensterangabe löschen?')) return;
+            if (!confirm(f.fenster_plan_id ? 'Diese Abweichung löschen? Das Fenster laut Plan ist dann wieder ungeprüft.' : 'Diese Fensterangabe löschen?')) return;
             aendern(a.einheit_id, (au, jetzt) => {
               const rr = au.raeume.find((q) => q.raum_id === r.raum_id)!;
               rr.fenster = rr.fenster.filter((q) => q.fenster_id !== f.fenster_id);
+              fensterDatensatzEntfernt(rr, f, jetzt);
               rr.geaendert_am = jetzt;
             });
           }}
@@ -237,6 +277,9 @@ function FensterBlock(props: { a: EinheitAufnahme; r: Raum; f: Fenster; index: n
           </button>
         )}
       </Feld>
+      {f.fenster_plan_id && (
+        <div class="feld-hinweis">Vorbefüllt aus dem Plan (Maße geschätzt). Nur ändern, was abweicht; nach dem Nachmessen unten auf „gemessen“ stellen.</div>
+      )}
       <Feld titel="Standardmaß Breite × Höhe" hinweis="Antippen trägt beide Maße als „geschätzt“ ein. Nach dem Nachmessen unten auf „gemessen“ stellen.">
         <div class="feld-titel klein">Fenster</div>
         <div class="tasten">
@@ -289,10 +332,130 @@ function FensterBlock(props: { a: EinheitAufnahme; r: Raum; f: Fenster; index: n
 
 const ZUSTAENDE: RaumZustand[] = ['vorhanden', 'nicht_vorhanden', 'zusammengelegt'];
 
+const PRUEFUNGEN: Bestaetigung[] = ['bestaetigt', 'geaendert', 'unklar'];
+const FENSTER_PRUEFUNGEN: FensterPlanBestaetigung[] = ['bestaetigt', 'geaendert', 'nicht_vorhanden', 'unklar'];
+
+/** 1.59 → „1,59“, 0.9 → „0,90“ (Meter) */
+const mText = (n: number | null) => (n === null ? '?' : meterText(n));
+
+/** „2-fach, 1975, nicht erneuert“ */
+function bestandText(pf: PlanFenster): string {
+  const erneuert = pf.erneuert === 'nein' ? 'nicht erneuert' : pf.erneuert === 'ja' ? 'erneuert' : pf.erneuert === 'unklar' ? 'erneuert unklar' : '';
+  return [pf.verglasung, pf.baujahr !== null ? String(pf.baujahr) : '', erneuert].filter(Boolean).join(', ');
+}
+
+/** Lichte Höhe und beheizt laut Rechenmodell mit passt / ändern / unklar. */
+function RaumAnnahmeZeilen(props: { a: EinheitAufnahme; r: Raum; pr: PlanRaum }) {
+  const { a, r, pr } = props;
+  const best = raumBestaetigung(r);
+  const pruefen = (k: RaumAnnahmeSchluessel, b: Bestaetigung | null) =>
+    aendern(a.einheit_id, (au, jetzt) => {
+      const x = au.raeume.find((q) => q.raum_id === r.raum_id)!;
+      raumAnnahmePruefen(x, pr, k, b);
+      x.geaendert_am = jetzt;
+    });
+  const setRaum = (fn: (x: Raum) => void) =>
+    aendern(a.einheit_id, (au, jetzt) => {
+      const x = au.raeume.find((q) => q.raum_id === r.raum_id)!;
+      fn(x);
+      x.geaendert_am = jetzt;
+    });
+  const h = pr.annahmen?.lichte_hoehe_m;
+  const bh = pr.annahmen?.beheizt;
+  return (
+    <>
+      {h && (
+        <div class={`block annahme ${best.lichte_hoehe_m ? 'erfasst' : ''}`}>
+          <div class="annahme-name">Lichte Raumhöhe</div>
+          <AnnahmeZeile text={`${mText(h.wert)} m`} status={h.status} quelle={h.quelle} markiert={r.annahmen_geaendert?.lichte_hoehe_m} />
+          <AnnahmeKnoepfe werte={PRUEFUNGEN} wert={best.lichte_hoehe_m} text={(w) => BESTAETIGUNG_TEXT[w]} onWahl={(w) => pruefen('lichte_hoehe_m', w)} />
+          {best.lichte_hoehe_m === 'geaendert' && (
+            <Feld titel="Lichte Raumhöhe vor Ort (m)" hinweis="Vorbefüllt mit der Annahme. Ein anderer Wert gilt als gemessen.">
+              <WahlMess
+                werte={LICHTE_HOEHEN}
+                ganzzahl={false}
+                text={meterText}
+                einheit="m"
+                wert={r.lichte_hoehe_m ?? { wert: null, status: null }}
+                onAendern={(m) => setRaum((x) => (x.lichte_hoehe_m = nachVorbefuellung(x.lichte_hoehe_m ?? { wert: null, status: null }, m, h.wert)))}
+              />
+            </Feld>
+          )}
+        </div>
+      )}
+      {bh && (
+        <div class={`block annahme ${best.beheizt ? 'erfasst' : ''}`}>
+          <div class="annahme-name">Beheizt</div>
+          <AnnahmeZeile text={bh.wert ? 'ja, beheizt' : 'nein, unbeheizt'} status={bh.status} quelle={bh.quelle} markiert={r.annahmen_geaendert?.beheizt} />
+          <AnnahmeKnoepfe werte={PRUEFUNGEN} wert={best.beheizt} text={(w) => BESTAETIGUNG_TEXT[w]} onWahl={(w) => pruefen('beheizt', w)} />
+          {best.beheizt === 'geaendert' && (
+            <Feld titel="Beheizt vor Ort">
+              <Tasten werte={ANTWORTEN} wert={r.beheizt_vor_ort ?? null} onWahl={(w) => setRaum((x) => (x.beheizt_vor_ort = w))} />
+            </Feld>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
+/** Ein Fenster laut Plan mit passt / ändern / nicht vorhanden / unklar; bei „ändern“ der vorbefüllte Datensatz. */
+function PlanFensterBlock(props: { a: EinheitAufnahme; r: Raum; pf: PlanFenster }) {
+  const { a, r, pf } = props;
+  const e = fensterPlanPruefung(r, pf.id);
+  const b = e?.bestaetigung ?? null;
+  const datensatz = r.fenster.find((f) => f.fenster_plan_id === pf.id);
+  const pruefen = (w: FensterPlanBestaetigung | null) => {
+    if (datensatz && w !== 'geaendert') {
+      const fotos = fotosVon(a.einheit_id, datensatz.fenster_id);
+      if (!confirm(`Die geänderten Angaben zu diesem Fenster${fotos.length ? ` und ${fotos.length} Fotos` : ''} werden gelöscht. Weiter?`)) return;
+    }
+    let entfernt: string | null = null;
+    aendern(a.einheit_id, (au, jetzt) => {
+      const x = au.raeume.find((q) => q.raum_id === r.raum_id)!;
+      entfernt = fensterPlanPruefen(x, pf, w, jetzt);
+      x.geaendert_am = jetzt;
+    });
+    if (entfernt) {
+      const ids = fotosVon(a.einheit_id, entfernt).map((f) => f.foto_id);
+      if (ids.length) void fotosEntfernen(a.einheit_id, ids);
+    }
+  };
+  const status = [pf.breite_status && `Breite ${pf.breite_status}`, pf.hoehe_status && `Höhe ${pf.hoehe_status}`, pf.bestand_status && `Bestand ${pf.bestand_status}`]
+    .filter(Boolean)
+    .join(' · ');
+  return (
+    <div class={`block plan-fenster ${b ? 'erfasst' : ''}`}>
+      <div class="plan-fenster-kopf">
+        <span class="annahme-name">{pf.bezeichnung}</span>
+        {pf.orientierung && <span class="plan-fenster-ort"> · {pf.orientierung}</span>}
+        {pf.typ !== 'fenster' && <span class="plan-fenster-ort"> · {FENSTER_ART_TEXT[pf.typ]}</span>}
+      </div>
+      <div class="plan-fenster-mass">
+        {mText(pf.breite_m)} × {mText(pf.hoehe_m)} m{pf.anzahl !== null && pf.anzahl !== 1 ? ` · ${pf.anzahl} Stück` : ''}
+      </div>
+      {bestandText(pf) && <div class="plan-fenster-bestand">{bestandText(pf)}</div>}
+      <div class="annahme-quelle">
+        {status}
+        {pf.quelle && ` · ${pf.quelle}`}
+      </div>
+      {e?.annahme_geaendert && <span class="marke-klein warn">Annahme geändert, neu prüfen</span>}
+      {e?.im_plan_entfallen && <span class="marke-klein warn">nicht mehr in der Projektdatei</span>}
+      <AnnahmeKnoepfe werte={FENSTER_PRUEFUNGEN} wert={b} text={(w) => BESTAETIGUNG_TEXT[w]} onWahl={pruefen} />
+      {datensatz && <FensterBlock a={a} r={r} f={datensatz} titel="Abweichung vom Plan" />}
+    </div>
+  );
+}
+
 export function RaumSeite(props: { eid: string; rid: string }) {
   const a = S.aufnahmen.get(props.eid)!;
   const r = a.raeume.find((x) => x.raum_id === props.rid)!;
   const pe = planEinheit(props.eid);
+  const pr = pe?.raeume.find((x) => x.raum_id === r.raum_id);
+  const hatAnnahmen = !!pr && (!!pr.annahmen || (pr.fenster_plan?.length ?? 0) > 0);
+  const offeneAnnahmen = raumAnnahmenOffen(r, pr);
+  const planFenster = pr?.fenster_plan ?? [];
+  const weitereFenster = r.fenster.filter((f) => !f.fenster_plan_id || !planFenster.some((pf) => pf.id === f.fenster_plan_id));
   const setRaum = (fn: (x: Raum) => void) =>
     aendern(a.einheit_id, (au, jetzt) => {
       const x = au.raeume.find((q) => q.raum_id === r.raum_id)!;
@@ -333,6 +496,33 @@ Abbrechen: im Raum bleiben (Heizfläche erfassen oder „Keine Heizfläche“ an
         {r.im_plan_entfallen && <Hinweis art="warn">Dieser Raum ist in der aktuellen Projektdatei nicht mehr enthalten. Die Aufnahmen bleiben erhalten.</Hinweis>}
         {r.zustand !== 'vorhanden' && <Hinweis art="warn">Raum ist als „{ZUSTAND_TEXT[r.zustand]}“ markiert.</Hinweis>}
 
+        {hatAnnahmen && (
+          <>
+            <h2>
+              Annahmen laut Rechenmodell{' '}
+              {offeneAnnahmen === 0 && <span class="tag-zaehler">alle geprüft</span>}
+            </h2>
+            {offeneAnnahmen > 0 && (
+              <button
+                class="knopf gross primaer wie-angenommen"
+                onClick={() =>
+                  aendern(a.einheit_id, (au, jetzt) => {
+                    const x = au.raeume.find((q) => q.raum_id === r.raum_id)!;
+                    raumWieAngenommen(x, pr!, jetzt);
+                    x.geaendert_am = jetzt;
+                  })
+                }
+              >
+                Raum wie angenommen ({offeneAnnahmen} offen)
+              </button>
+            )}
+            {offeneAnnahmen > 0 && (
+              <div class="feld-hinweis">Bestätigt lichte Höhe, beheizt und alle Fenster laut Plan, die noch offen sind. Heizflächen sind davon nicht betroffen.</div>
+            )}
+            <RaumAnnahmeZeilen a={a} r={r} pr={pr!} />
+          </>
+        )}
+
         <h2>Heizflächen</h2>
         <div class="liste">
           {r.heizflaechen.map((h) => {
@@ -369,13 +559,24 @@ Abbrechen: im Raum bleiben (Heizfläche erfassen oder „Keine Heizfläche“ an
             </button>
           )}
         </div>
-        <Feld titel="Beheizt vor Ort">
-          <Tasten werte={ANTWORTEN} wert={r.beheizt_vor_ort ?? null} onWahl={(w) => setRaum((x) => (x.beheizt_vor_ort = w))} />
-        </Feld>
+        {!pr?.annahmen?.beheizt && (
+          <Feld titel="Beheizt vor Ort">
+            <Tasten werte={ANTWORTEN} wert={r.beheizt_vor_ort ?? null} onWahl={(w) => setRaum((x) => (x.beheizt_vor_ort = w))} />
+          </Feld>
+        )}
 
         <h2 id="fenster">Fenster</h2>
-        {r.fenster.map((f, i) => (
-          <FensterBlock key={f.fenster_id} a={a} r={r} f={f} index={i} />
+        {planFenster.length > 0 && (
+          <>
+            <h3>Laut Plan</h3>
+            {planFenster.map((pf) => (
+              <PlanFensterBlock key={pf.id} a={a} r={r} pf={pf} />
+            ))}
+            {(weitereFenster.length > 0 || planFenster.length > 0) && <h3>Weitere Fenster (nicht im Plan)</h3>}
+          </>
+        )}
+        {weitereFenster.map((f, i) => (
+          <FensterBlock key={f.fenster_id} a={a} r={r} f={f} titel={`Fenster ${i + 1}`} />
         ))}
         <button
           class="knopf gross"
@@ -406,16 +607,18 @@ Abbrechen: im Raum bleiben (Heizfläche erfassen oder „Keine Heizfläche“ an
               }
             />
           </Feld>
-          <Feld titel="Lichte Raumhöhe (m)">
-            <WahlMess
-              werte={LICHTE_HOEHEN}
-              ganzzahl={false}
-              text={meterText}
-              einheit="m"
-              wert={r.lichte_hoehe_m ?? { wert: null, status: null }}
-              onAendern={(m) => setRaum((x) => (x.lichte_hoehe_m = m))}
-            />
-          </Feld>
+          {!pr?.annahmen?.lichte_hoehe_m && (
+            <Feld titel="Lichte Raumhöhe (m)">
+              <WahlMess
+                werte={LICHTE_HOEHEN}
+                ganzzahl={false}
+                text={meterText}
+                einheit="m"
+                wert={r.lichte_hoehe_m ?? { wert: null, status: null }}
+                onAendern={(m) => setRaum((x) => (x.lichte_hoehe_m = m))}
+              />
+            </Feld>
+          )}
           <Feld titel="Zustand">
             <Tasten werte={ZUSTAENDE} wert={r.zustand} text={(z) => ZUSTAND_TEXT[z]} abwaehlbar={false} onWahl={(z) => z && setRaum((x) => (x.zustand = z))} />
           </Feld>

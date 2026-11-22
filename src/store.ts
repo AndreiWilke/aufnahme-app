@@ -127,12 +127,26 @@ export async function starten(): Promise<void> {
   melden();
 }
 
+/** Ab dieser Version liest die App Felder der Projektdatei, die ältere Versionen übergangen haben. */
+const LESEN_SEIT = [1, 6, 0];
+
+/** true, wenn die Projektdatei mit einer älteren App-Version gelesen wurde, als LESEN_SEIT angibt. */
+export function neuLesenNoetig(gelesen_mit: string | undefined): boolean {
+  if (!gelesen_mit) return true;
+  const v = gelesen_mit.split('.').map((x) => parseInt(x, 10) || 0);
+  for (let i = 0; i < 3; i++) {
+    if ((v[i] ?? 0) !== LESEN_SEIT[i]) return (v[i] ?? 0) < LESEN_SEIT[i];
+  }
+  return false;
+}
+
 export async function projektOeffnen(projekt_id: string, navigieren = true): Promise<void> {
   const p = S.projekte.find((x) => x.projekt_id === projekt_id);
   if (!p) return;
-  // Bis 1.4 gelesene Projektdateien kannten heizlast_w und pruefpunkte nicht: einmal mit dieser Version neu lesen
-  // und wie eine neuere Fassung einspielen (Aufnahmen bleiben erhalten).
-  if (!p.gelesen_mit && p.objekt_roh) {
+  // Bis 1.4 gelesene Projektdateien kannten heizlast_w und pruefpunkte nicht, bis 1.5 keine Annahmen und keine
+  // Fenster laut Plan: einmal mit dieser Version neu lesen und wie eine neuere Fassung einspielen
+  // (Aufnahmen und Bestätigungen bleiben erhalten).
+  if (neuLesenNoetig(p.gelesen_mit) && p.objekt_roh) {
     let neu: Projekt | null = null;
     try {
       neu = projektdateiLesen(p.objekt_roh);

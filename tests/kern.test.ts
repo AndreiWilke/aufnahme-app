@@ -158,7 +158,7 @@ describe('ZIP', () => {
     const roh = new Uint8Array(await erg.datei.arrayBuffer());
     const z = unzipSync(roh);
     expect(Object.keys(z).sort()).toEqual([
-      'aufnahme.json', 'einheiten.csv', 'fenster.csv', 'fotos/EH013/EH013_Whg213_R02-Küche_HK1_Front_01.jpg',
+      'aufnahme.json', 'einheiten.csv', 'fenster.csv', 'fenster_plan.csv', 'fotos/EH013/EH013_Whg213_R02-Küche_HK1_Front_01.jpg',
       'heizflaechen.csv', 'heizzentrale.csv', 'pruefpunkte.csv', 'raeume.csv',
     ]);
     const j = JSON.parse(strFromU8(z['aufnahme.json']));

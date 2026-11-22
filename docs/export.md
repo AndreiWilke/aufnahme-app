@@ -6,7 +6,7 @@ für das ganze Projekt, jeweils „neu seit letztem Export“ (delta) oder „ko
 ## Inhalt
 - `aufnahme.json` – Schema aus UEBERGABE.md Abschnitt 5 (`schema_version: 1`)
 - `einheiten.csv`, `raeume.csv`, `heizflaechen.csv`, `fenster.csv`, `heizzentrale.csv`, `pruefpunkte.csv` (seit
-  1.5.0) – UTF-8 mit BOM, Semikolon, Dezimalkomma, `ja`/`nein`
+  1.5.0), `fenster_plan.csv` (seit 1.6.0) – UTF-8 mit BOM, Semikolon, Dezimalkomma, `ja`/`nein`
 - `fotos/<einheit_id>/<dateiname>.jpg` – 2560 px lange Kante, JPEG 0,82; ZIP mit UTF-8-Flag
 
 ## Delta-Export
@@ -101,6 +101,63 @@ Fotos: `<Einheit-ID>_<Prüfpunkt-ID ohne Einheit>_01.jpg`, z. B. `ALLG_P03_01.jp
 Das Foto „Glasstempel“ steht mit den übrigen Fensterfotos in `fotos`, Dateiname
 `<Einheit>_<Raum>_Fenster_Glasstempel_01.jpg`, z. B. `EH013_Whg116_R03-Wohnraum_Fenster_Glasstempel_01.jpg`.
 
+## Ergänzungen 1.6.0 „Annahmen bestätigen“
+Nur ergänzt, kein bestehendes Feld, keine Spalte und kein Fotoname umbenannt; Delta-Logik unverändert,
+`schema_version` bleibt 1. Die Annahmen selbst stehen in der Projektdatei (`annahme`, `annahmen`, `fenster_plan`),
+der Export enthält nur das Ergebnis der Prüfung vor Ort. Ältere Aufnahmen exportieren `null` bzw. leere Listen.
+
+Neuer Wert im Datenstatus: **`bestätigt`** (zusätzlich zu `gemessen` und `geschätzt`). Er steht an einem Messwert,
+wenn vor Ort „passt“ getippt wurde und der Wert die Annahme aus der Projektdatei ist (Prüfpunkt mit `typ = "zahl"`,
+`lichte_hoehe_m`). In den CSV-Dateien erscheint er in den Statusspalten (`status`, `lichte_hoehe_status`).
+
+### Prüfpunkte
+`pruefpunkte[].bestaetigung` (vor `geaendert_am`): `bestaetigt`, `geaendert`, `unklar` oder `null` (nicht geprüft
+oder Prüfpunkt ohne Annahme).
+
+| Knopf | `bestaetigung` | weitere Felder |
+|---|---|---|
+| passt | `bestaetigt` | `erledigt = true`; bei `typ = "zahl"` `wert = { wert: <Annahme>, status: "bestätigt" }` |
+| ändern | `geaendert` | Eingaben wie bisher; die Zahl ist mit der Annahme vorbefüllt (`geschätzt`), ein anderer Wert wird `gemessen` |
+| unklar | `unklar` | `erledigt = true`, Notiz optional; ein aus der Annahme übernommener Wert wird geleert |
+
+`pruefpunkte.csv`, neue Spalten am Ende: `bestaetigung;annahme_text;annahme_wert;annahme_status` (Annahme aus der
+Projektdatei, zum Lesen ohne Projektdatei).
+
+### Raum
+`aufnahme.json`, je Raum nach `beheizt_vor_ort`, vor `geaendert_am`:
+```json
+"annahmen_bestaetigung": { "lichte_hoehe_m": "bestaetigt", "beheizt": "geaendert" },
+"fenster_plan_bestaetigung": [
+  { "id": "EH007-R03-F01", "bestaetigung": "bestaetigt", "fenster_id": null, "geaendert_am": "…" },
+  { "id": "EH007-R03-F02", "bestaetigung": "geaendert", "fenster_id": "<uuid>", "geaendert_am": "…" }
+]
+```
+- Die Werte stehen in den Feldern aus 1.5.0: „passt“ setzt `lichte_hoehe_m = { wert: <Annahme>, status:
+  "bestätigt" }` bzw. `beheizt_vor_ort = "ja"/"nein"`; „ändern“ trägt den Wert vor Ort dort ein; „unklar“ setzt
+  `beheizt_vor_ort = "unklar"`.
+- `fenster_plan_bestaetigung` hat einen Eintrag je Fenster laut Plan (auch ungeprüfte mit `null`). `bestaetigung`:
+  `bestaetigt`, `geaendert`, `nicht_vorhanden`, `unklar` oder `null`. `fenster_id` nur bei `geaendert`, sonst `null`.
+- „Raum wie angenommen“ setzt alle noch ungeprüften Annahmen des Raums (lichte Höhe, beheizt, Fenster laut Plan) auf
+  `bestaetigt`; bereits geprüfte bleiben. Heizflächen sind nicht betroffen.
+
+`raeume.csv`, neue Spalten am Ende: `lichte_hoehe_bestaetigung;beheizt_bestaetigung`.
+
+### Fenster laut Plan
+- „passt“ legt **keinen** Fenster-Datensatz an.
+- „ändern“ legt einen Fenster-Datensatz wie bisher an, vorbefüllt aus dem Plan (Breite und Höhe in mm,
+  `masse_status = "geschätzt"`, `art`, `anzahl`, `verglasung`, `erneuert`, `baujahr`), mit **`fenster_plan_id`**
+  (vor `geaendert_am`; in `fenster.csv` letzte Spalte). Zusätzliche Fenster ohne Plan haben `fenster_plan_id = null`.
+- Neue Datei `fenster_plan.csv`, eine Zeile je Fenster laut Plan:
+  `einheit_id;raum_id;fenster_plan_id;bezeichnung;orientierung;breite_m;hoehe_m;anzahl;bestaetigung;fenster_id;geaendert_am`
+  (`bezeichnung` bis `anzahl` aus der Projektdatei).
+
+### Neuere Projektdatei einspielen
+Prüfungen bleiben über die IDs erhalten (`pruefpunkte[].id`, Raum-ID, `fenster_plan[].id`). Hat sich eine Annahme
+geändert (Text, Wert oder Einheit; beim Fenster Typ, Maße, Anzahl oder Bestand), wird „passt“ auf `null`
+zurückgesetzt, ein aus der Annahme übernommener Wert geleert und der Punkt in der App als „Annahme geändert, neu
+prüfen“ markiert. „ändern“ und „unklar“ bleiben mit den eingegebenen Werten. Ändert sich nur der Status oder die
+Quelle der Annahme, bleibt „passt“ bestehen. Ein entfallenes Plan-Fenster bleibt nur mit Prüfung im Export.
+
 ## Feste Schlüssel
 - `art`: `platte`, `glieder`, `roehren`, `bad`, `konvektor`, `fussbodenheizung`, `sonstiges`
 - `typ`: `10`, `11`, `20`, `21`, `22`, `33`, `unbekannt` (nur bei `platte`, sonst `null`)
@@ -110,10 +167,13 @@ Das Foto „Glasstempel“ steht mit den übrigen Fensterfotos in `fotos`, Datei
 - `rahmen`: `kunststoff`, `holz`, `holz_alu`, `alu`, `unbekannt`
 - `status` (Einheit): `offen`, `in_arbeit`, `fertig`, `nicht_angetroffen`
 - `zustand` (Raum): `vorhanden`, `nicht_vorhanden`, `zusammengelegt`
-- Datenstatus Messwert: `gemessen`, `geschätzt` (wie in AGENTS.md geschrieben); ohne Wert `null`
+- Datenstatus Messwert: `gemessen`, `geschätzt` (wie in AGENTS.md geschrieben), seit 1.6.0 auch `bestätigt`
+  (Annahme vor Ort bestätigt); ohne Wert `null`
 - `gliederzahl` nur bei `glieder` und `roehren`, sonst `null`
 - `antwort` (Prüfpunkt), `erneuert` (Fenster), `beheizt_vor_ort` (Raum): `ja`, `nein`, `unklar`
 - `art` (Fenster): `fenster`, `fenstertuer`, `ladenfront`, `dachfenster`
+- `bestaetigung` (Prüfpunkt, Raum-Annahmen): `bestaetigt`, `geaendert`, `unklar`; Fenster laut Plan zusätzlich
+  `nicht_vorhanden`
 
 ## Dateiname
 `Aufnahme_<projekt-id>_<JJJJ-MM-TT_HHMM>_<komplett|delta>_<umfang>.zip`, z. B.

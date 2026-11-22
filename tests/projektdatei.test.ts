@@ -8,8 +8,8 @@ import { aufnahmeJson, csvDateien } from '../src/export';
 import { fotoPraefix, naechsterDateiname } from '../src/fotos';
 import { gruppiertNachTag } from '../src/ui/projekt';
 
-interface RohRaum { id: string; nr: string; nutzung: string; soll_temp_c: number | null; flaeche_plan_m2: number | null; heizlast_w?: number | null }
-interface RohPruefpunkt { id: string; typ: string; einheit: string | null }
+interface RohRaum { id: string; nr: string; nutzung: string; soll_temp_c: number | null; flaeche_plan_m2: number | null; heizlast_w?: number | null; annahmen?: Record<string, unknown>; fenster_plan?: { id: string }[] }
+interface RohPruefpunkt { id: string; typ: string; einheit: string | null; annahme?: { text: string; wert: number | null } | null }
 interface RohEinheit { id: string; art: string; termin: string; ersatz: { eh: number }[]; raeume: RohRaum[]; pruefpunkte?: RohPruefpunkt[] }
 interface RohDatei { nutzungsarten: { key: string; soll_temp_c: number | null }[]; einheiten: RohEinheit[] }
 
@@ -59,7 +59,26 @@ function pruefeFormat(roh: RohDatei) {
   expect(aufnahmen.find((a) => a.einheit_id === 'HZ')!.heizzentrale).not.toBeNull();
   expect(aufnahmen.reduce((s, a) => s + a.raeume.length, 0)).toBe(ids.length);
   expect(aufnahmen.reduce((s, a) => s + (a.pruefpunkte?.length ?? 0), 0)).toBe(pp.length);
-  return { p, aufnahmen, anzahlRaeume: ids.length, anzahlPruefpunkte: pp.length };
+
+  // 1.6.0: Annahmen an Prüfpunkten, je Raum und Fenster laut Plan vollständig übernommen, Fenster-IDs eindeutig.
+  const planPP = p.einheiten.flatMap((e) => e.pruefpunkte ?? []);
+  expect(planPP.filter((q) => q.annahme).length).toBe(pp.filter((q) => q.annahme).length);
+  const planRaeume = p.einheiten.flatMap((e) => e.raeume);
+  expect(planRaeume.filter((r) => r.annahmen).length).toBe(raeume.filter((x) => x.r.annahmen && Object.keys(x.r.annahmen).length).length);
+  const fp = raeume.flatMap((x) => x.r.fenster_plan ?? []).map((f) => f.id);
+  expect(new Set(fp).size).toBe(fp.length);
+  expect(planRaeume.flatMap((r) => (r.fenster_plan ?? []).map((f) => f.id))).toEqual(fp);
+  expect(aufnahmen.flatMap((a) => a.raeume.flatMap((r) => (r.fenster_plan_bestaetigung ?? []).map((e) => e.id)))).toEqual(fp);
+  return {
+    p,
+    aufnahmen,
+    anzahlRaeume: ids.length,
+    anzahlPruefpunkte: pp.length,
+    anzahlPPAnnahmen: pp.filter((q) => q.annahme).length,
+    raeumeMitAnnahmen: planRaeume.filter((r) => r.annahmen).length,
+    anzahlFensterPlan: fp.length,
+    raeumeMitFensterPlan: planRaeume.filter((r) => (r.fenster_plan?.length ?? 0) > 0).length,
+  };
 }
 
 describe('Projektdatei im verbindlichen Format', () => {
@@ -92,7 +111,8 @@ describe('Projektdatei im verbindlichen Format', () => {
     const aufnahmen = p.einheiten.map((e) => neueAufnahme(p.projekt_id, e));
     const zeile = csvDateien(p, aufnahmen)['raeume.csv'].split('\r\n').find((z) => z.includes('EH002-R03'))!;
     // 1.5.0: neue Spalten am Ende (keine_heizflaeche, lichte_hoehe_m, lichte_hoehe_status, beheizt_vor_ort)
-    expect(zeile).toBe('EH002;EH002-R03;03;Lüftungszentrale;technik;;;plan;vorhanden;nein;0;0;nein;;;nein;;;');
+    // 1.6.0: zusätzlich lichte_hoehe_bestaetigung, beheizt_bestaetigung
+    expect(zeile).toBe('EH002;EH002-R03;03;Lüftungszentrale;technik;;;plan;vorhanden;nein;0;0;nein;;;nein;;;;;');
     const json = aufnahmeJson(p, aufnahmen, 'komplett', 'alle', '2026-12-04T10:00:00+01:00');
     const r = json.einheiten.find((e) => e.einheit_id === 'EH002')!.raeume.find((x) => x.raum_id === 'EH002-R03')!;
     expect(r.soll_temp_c).toBeNull();
@@ -196,12 +216,21 @@ describe.skipIf(echte.length === 0)('Echte Projektdateien (nur lokal)', () => {
   }
 
   const ism = join(DATA, 'ismaninger136.objekt.json');
-  it.skipIf(!existsSync(ism))('ismaninger136 Fassung 2: 47 Einheiten, 295 Räume, Termine und Ersatzwohnungen stimmig', () => {
+  it.skipIf(!existsSync(ism))('ismaninger136 Fassung 3: 47 Einheiten, 295 Räume, 278 Prüfpunkte, Annahmen und Fenster laut Plan', () => {
     const roh = JSON.parse(readFileSync(ism, 'utf-8')) as RohDatei;
-    const { p, anzahlRaeume, anzahlPruefpunkte } = pruefeFormat(roh);
+    const r = pruefeFormat(roh);
+    const { p, anzahlRaeume, anzahlPruefpunkte } = r;
     expect(p.einheiten).toHaveLength(47);
     expect(anzahlRaeume).toBe(295);
-    expect(anzahlPruefpunkte).toBe(168);
+    expect(anzahlPruefpunkte).toBe(278);
+    // Fassung 3: Annahmen an fast allen Prüfpunkten und Räumen, 226 Fenster laut Plan in 136 Räumen.
+    expect(r.anzahlPPAnnahmen).toBeGreaterThan(0);
+    expect(r.raeumeMitAnnahmen).toBeGreaterThan(0);
+    expect(r.anzahlFensterPlan).toBe(226);
+    expect(r.raeumeMitFensterPlan).toBe(136);
+    const w204 = p.einheiten.find((e) => e.einheit_id === 'EH007')!;
+    expect(w204.raeume.find((x) => x.raum_id === 'EH007-R03')!.fenster_plan!.map((f) => f.id)).toEqual(['EH007-R03-F01', 'EH007-R03-F02']);
+    expect(w204.raeume.find((x) => x.raum_id === 'EH007-R03')!.annahmen!.lichte_hoehe_m!.wert).toBeGreaterThan(2);
     expect(roh.einheiten.find((e) => e.id === 'HZ')!.raeume).toHaveLength(0);
     // Freitag: Heizzentrale, ALLG und Gewerbe. Samstag: Wohnungen und die Allgemeinflächen je Geschoss (ALLG-1OG …).
     for (const e of roh.einheiten) {

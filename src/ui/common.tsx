@@ -163,7 +163,53 @@ export function ZahlFeld(props: {
   );
 }
 
+/** Annahme aus der Projektdatei: „Angenommen: <text> (<status>, <quelle>)“. */
+export function AnnahmeZeile(props: { text: string; status?: string; quelle?: string; markiert?: boolean }) {
+  const klammer = [props.status, props.quelle].filter(Boolean).join(', ');
+  return (
+    <div class="annahme-zeile">
+      <span class="annahme-titel">Angenommen:</span> {props.text}
+      {klammer && <span class="annahme-quelle"> ({klammer})</span>}
+      {props.markiert && <span class="marke-klein warn">Annahme geändert, neu prüfen</span>}
+    </div>
+  );
+}
+
+/**
+ * Große Knöpfe passt / ändern / unklar (bei Fenstern laut Plan auch „nicht vorhanden“).
+ * Der aktive Knopf noch einmal angetippt nimmt die Prüfung zurück.
+ */
+export function AnnahmeKnoepfe<T extends string>(props: { werte: readonly T[]; wert: T | null; text: (w: T) => string; onWahl: (w: T | null) => void }) {
+  return (
+    <div class="annahme-knoepfe">
+      {props.werte.map((w) => (
+        <button
+          key={w}
+          class={`knopf annahme-knopf annahme-${w} ${props.wert === w ? 'aktiv' : ''}`}
+          aria-pressed={props.wert === w}
+          onClick={() => props.onWahl(props.wert === w ? null : w)}
+        >
+          {props.wert === w ? '✓ ' : ''}
+          {props.text(w)}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function StatusSchalter(props: { status: MessStatus | null; aktiv: boolean; onWahl: (s: MessStatus) => void }) {
+  if (props.status === 'bestätigt')
+    return (
+      <div class="status-schalter">
+        <span class="status-bestaetigt">Annahme bestätigt</span>
+        <button class="taste klein" onClick={() => props.onWahl('gemessen')}>
+          gemessen
+        </button>
+        <button class="taste klein" onClick={() => props.onWahl('geschätzt')}>
+          geschätzt
+        </button>
+      </div>
+    );
   const s = props.status ?? 'gemessen';
   return (
     <div class={`status-schalter ${props.aktiv ? '' : 'inaktiv'}`}>
@@ -180,6 +226,9 @@ export function StatusSchalter(props: { status: MessStatus | null; aktiv: boolea
     </div>
   );
 }
+
+/** Status für einen neu eingegebenen Wert: bisherigen behalten, eine bestätigte Annahme wird zu „gemessen“. */
+const eingabeStatus = (s: MessStatus | null): MessStatus => (s && s !== 'bestätigt' ? s : 'gemessen');
 
 /** Zahlenfeld mit Datenstatus gemessen/geschätzt. */
 export function MessFeld(props: {
@@ -198,7 +247,7 @@ export function MessFeld(props: {
         einheit={props.einheit}
         platzhalter={props.platzhalter}
         onAendern={(n) =>
-          props.onAendern(n === null ? { wert: null, status: null } : { wert: n, status: props.wert.status ?? 'gemessen' })
+          props.onAendern(n === null ? { wert: null, status: null } : { wert: n, status: eingabeStatus(props.wert.status) })
         }
       />
       <StatusSchalter
@@ -236,7 +285,7 @@ export function WahlMess(props: {
             class={`taste ${!andere && w === b ? 'aktiv' : ''}`}
             onClick={() => {
               setOffen(false);
-              props.onAendern(w === b && !andere ? { wert: null, status: null } : { wert: b, status: props.wert.status ?? 'gemessen' });
+              props.onAendern(w === b && !andere ? { wert: null, status: null } : { wert: b, status: eingabeStatus(props.wert.status) });
             }}
           >
             {props.text ? props.text(b) : b}
@@ -252,7 +301,7 @@ export function WahlMess(props: {
           ganzzahl={props.ganzzahl !== false}
           autoFokus={offen}
           einheit={props.einheit}
-          onAendern={(n) => props.onAendern(n === null ? { wert: null, status: null } : { wert: n, status: props.wert.status ?? 'gemessen' })}
+          onAendern={(n) => props.onAendern(n === null ? { wert: null, status: null } : { wert: n, status: eingabeStatus(props.wert.status) })}
         />
       )}
       <StatusSchalter status={props.wert.status} aktiv={w !== null} onWahl={(s) => props.onAendern({ wert: w, status: s })} />

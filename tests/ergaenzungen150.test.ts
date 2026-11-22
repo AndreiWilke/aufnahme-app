@@ -6,6 +6,7 @@ import { neueAufnahme, projektdateiLesen, projektEinspielen } from '../src/proje
 import { aufnahmeJson, csvDateien } from '../src/export';
 import { fotoPraefix, naechsterDateiname, pruefpunktKurz } from '../src/fotos';
 import type { EinheitAufnahme, Fenster, Raum } from '../src/model';
+import { APP_VERSION } from '../src/model';
 import { heizflaecheFehltVermutlich, heizlastSumme, heizlastText } from '../src/ui/einheit';
 import * as DB from '../src/db';
 import { projektOeffnen, S } from '../src/store';
@@ -21,20 +22,23 @@ describe('Projektdatei: heizlast_w und pruefpunkte', () => {
   it('liest heizlast_w (Zahl, negativ, null) und Prüfpunkte ohne Warnung', () => {
     const p = projekt();
     expect(p.warnungen).toEqual([]);
-    expect(p.gelesen_mit).toBe('1.5.0');
+    expect(p.gelesen_mit).toBe(APP_VERSION);
     const eh13 = p.einheiten.find((e) => e.einheit_id === 'EH013')!;
     expect(eh13.raeume.map((r) => r.heizlast_w ?? null)).toEqual([-42, 512, 1209, null, null, null]);
     const allg = p.einheiten.find((e) => e.einheit_id === 'ALLG')!;
     expect(allg.raeume[0].heizlast_w).toBeNull();
     expect(allg.pruefpunkte).toEqual([
-      { id: 'ALLG-P01', ort: 'Treppenhaus 1', text: 'Lichte Raumhöhe im Treppenhaus messen', typ: 'zahl', einheit: 'm', wirkung: 'Raumvolumen, Lüftungswärmeverlust', quelle: 'Beispiel' },
+      {
+        id: 'ALLG-P01', ort: 'Treppenhaus 1', text: 'Lichte Raumhöhe im Treppenhaus messen', typ: 'zahl', einheit: 'm', wirkung: 'Raumvolumen, Lüftungswärmeverlust', quelle: 'Beispiel',
+        annahme: { text: 'lichte Höhe ca. 2,60 m', wert: 2.6, einheit: 'm', status: 'A', quelle: 'Beispielansicht' },
+      },
       expect.objectContaining({ id: 'ALLG-P02', typ: 'text', einheit: null }),
     ]);
     const a = neueAufnahme(p.projekt_id, allg);
     expect(a.pruefpunkte).toHaveLength(2);
     expect(a.pruefpunkte![0]).toEqual({
       id: 'ALLG-P01', text: 'Lichte Raumhöhe im Treppenhaus messen', antwort: null, wert: { wert: null, status: null },
-      notiz: '', fotos: [], erledigt: false, geaendert_am: null,
+      notiz: '', fotos: [], erledigt: false, bestaetigung: null, geaendert_am: null,
     });
     expect(neueAufnahme(p.projekt_id, eh13).raeume[2].heizlast_w).toBe(1209);
   });
@@ -131,9 +135,10 @@ describe('Export: nur ergänzt, nichts umbenannt', () => {
     const allg = j.einheiten.find((e) => e.einheit_id === 'ALLG')!;
     expect(allg.pruefpunkte[0]).toEqual({
       id: 'ALLG-P01', text: 'Lichte Raumhöhe im Treppenhaus messen', antwort: 'ja', wert: { wert: 2.55, status: 'gemessen' },
-      notiz: 'Treppenhaus 1 gemessen', fotos: ['ALLG_P01_01.jpg'], erledigt: true, geaendert_am: ZEIT,
+      notiz: 'Treppenhaus 1 gemessen', fotos: ['ALLG_P01_01.jpg'], erledigt: true, bestaetigung: null, geaendert_am: ZEIT,
     });
-    expect(Object.keys(allg.pruefpunkte[1])).toEqual(['id', 'text', 'antwort', 'wert', 'notiz', 'fotos', 'erledigt', 'geaendert_am']);
+    // 1.6.0: bestaetigung vor geaendert_am ergänzt
+    expect(Object.keys(allg.pruefpunkte[1])).toEqual(['id', 'text', 'antwort', 'wert', 'notiz', 'fotos', 'erledigt', 'bestaetigung', 'geaendert_am']);
     expect(allg.pruefpunkte[1].wert).toEqual({ wert: null, status: null });
     // Bisherige Schlüssel der Einheit unverändert und in gleicher Reihenfolge, pruefpunkte ergänzt.
     expect(Object.keys(allg)).toEqual([
@@ -147,14 +152,16 @@ describe('Export: nur ergänzt, nichts umbenannt', () => {
     const th = j.einheiten.find((e) => e.einheit_id === 'ALLG')!.raeume[0];
     expect(Object.keys(th)).toEqual([
       'raum_id', 'nr', 'name', 'nutzung', 'flaeche_plan_m2', 'soll_temp_c', 'herkunft', 'zustand', 'erledigt', 'notiz',
-      'im_plan_entfallen', 'heizflaechen', 'fenster', 'keine_heizflaeche', 'lichte_hoehe_m', 'beheizt_vor_ort', 'geaendert_am',
+      'im_plan_entfallen', 'heizflaechen', 'fenster', 'keine_heizflaeche', 'lichte_hoehe_m', 'beheizt_vor_ort',
+      'annahmen_bestaetigung', 'fenster_plan_bestaetigung', 'geaendert_am',
     ]);
     expect(th).toMatchObject({ keine_heizflaeche: false, lichte_hoehe_m: { wert: 2.55, status: 'geschätzt' }, beheizt_vor_ort: 'ja' });
     const eh13 = j.einheiten.find((e) => e.einheit_id === 'EH013')!;
     expect(eh13.raeume[0]).toMatchObject({ keine_heizflaeche: true, erledigt: true, lichte_hoehe_m: { wert: null, status: null }, beheizt_vor_ort: null });
     const f = eh13.raeume[2].fenster[0];
     expect(Object.keys(f)).toEqual([
-      'fenster_id', 'anzahl', 'verglasung', 'rahmen', 'breite_mm', 'hoehe_mm', 'masse_status', 'fotos', 'art', 'erneuert', 'baujahr', 'geaendert_am',
+      'fenster_id', 'anzahl', 'verglasung', 'rahmen', 'breite_mm', 'hoehe_mm', 'masse_status', 'fotos', 'art', 'erneuert', 'baujahr',
+      'fenster_plan_id', 'geaendert_am',
     ]);
     expect(f).toMatchObject({ art: 'fenster', erneuert: 'nein', baujahr: 1975 });
     // heizlast_w steht nur in der Projektdatei, nicht im Export.
@@ -175,7 +182,9 @@ describe('Export: nur ergänzt, nichts umbenannt', () => {
     expect(e.raeume[0]).toMatchObject({ keine_heizflaeche: false, lichte_hoehe_m: { wert: null, status: null }, beheizt_vor_ort: null });
     expect(e.raeume[0].fenster[0]).toMatchObject({ art: null, erneuert: null, baujahr: null });
     const csv = csvDateien(projekt(), [a]);
-    expect(csv['pruefpunkte.csv']).toBe('﻿einheit_id;pruefpunkt_id;ort;text;typ;antwort;wert;wert_einheit;status;notiz;erledigt;fotos;geaendert_am\r\n');
+    expect(csv['pruefpunkte.csv']).toBe(
+      '﻿einheit_id;pruefpunkt_id;ort;text;typ;antwort;wert;wert_einheit;status;notiz;erledigt;fotos;geaendert_am;bestaetigung;annahme_text;annahme_wert;annahme_status\r\n',
+    );
   });
 
   it('CSV: neue Spalten am Ende, bisherige Spalten unverändert, pruefpunkte.csv', () => {
@@ -183,19 +192,20 @@ describe('Export: nur ergänzt, nichts umbenannt', () => {
     const kopf = (n: string) => c[n].slice(1).split('\r\n')[0];
     expect(kopf('raeume.csv')).toBe(
       'einheit_id;raum_id;nr;name;nutzung;flaeche_plan_m2;soll_temp_c;herkunft;zustand;erledigt;anzahl_heizflaechen;anzahl_fenster;im_plan_entfallen;notiz;geaendert_am;' +
-        'keine_heizflaeche;lichte_hoehe_m;lichte_hoehe_status;beheizt_vor_ort',
+        'keine_heizflaeche;lichte_hoehe_m;lichte_hoehe_status;beheizt_vor_ort;lichte_hoehe_bestaetigung;beheizt_bestaetigung',
     );
     expect(kopf('fenster.csv')).toBe(
-      'einheit_id;raum_id;raum_name;fenster_id;anzahl;verglasung;rahmen;breite_mm;hoehe_mm;masse_status;fotos;geaendert_am;art;erneuert;baujahr',
+      'einheit_id;raum_id;raum_name;fenster_id;anzahl;verglasung;rahmen;breite_mm;hoehe_mm;masse_status;fotos;geaendert_am;art;erneuert;baujahr;fenster_plan_id',
     );
-    expect(c['raeume.csv']).toContain('ALLG;ALLG-R01;01;Treppenhaus 1;treppenhaus;;10;plan;vorhanden;nein;0;0;nein;;' + ZEIT + ';nein;2,55;geschätzt;ja\r\n');
-    expect(c['raeume.csv']).toContain('EH013;EH013-R01;01;Diele;diele;7,9;20;plan;vorhanden;ja;0;0;nein;;;ja;;;\r\n');
-    expect(c['fenster.csv']).toContain(';1200;1400;geschätzt;EH013_Whg213_R03-Wohnraum_Fenster_Glasstempel_01.jpg;' + ZEIT + ';fenster;nein;1975\r\n');
+    expect(c['raeume.csv']).toContain('ALLG;ALLG-R01;01;Treppenhaus 1;treppenhaus;;10;plan;vorhanden;nein;0;0;nein;;' + ZEIT + ';nein;2,55;geschätzt;ja;;\r\n');
+    expect(c['raeume.csv']).toContain('EH013;EH013-R01;01;Diele;diele;7,9;20;plan;vorhanden;ja;0;0;nein;;;ja;;;;;\r\n');
+    expect(c['fenster.csv']).toContain(';1200;1400;geschätzt;EH013_Whg213_R03-Wohnraum_Fenster_Glasstempel_01.jpg;' + ZEIT + ';fenster;nein;1975;\r\n');
     const pp = c['pruefpunkte.csv'].slice(1).split('\r\n');
     expect(pp[1]).toBe(
-      'ALLG;ALLG-P01;Treppenhaus 1;Lichte Raumhöhe im Treppenhaus messen;zahl;ja;2,55;m;gemessen;Treppenhaus 1 gemessen;ja;ALLG_P01_01.jpg;' + ZEIT,
+      'ALLG;ALLG-P01;Treppenhaus 1;Lichte Raumhöhe im Treppenhaus messen;zahl;ja;2,55;m;gemessen;Treppenhaus 1 gemessen;ja;ALLG_P01_01.jpg;' + ZEIT +
+        ';;lichte Höhe ca. 2,60 m;2,6;A',
     );
-    expect(pp[2]).toBe('ALLG;ALLG-P02;Keller;Sind die Kellerräume beheizt? Heizkörper oder offene Leitungen?;text;;;;;;nein;;');
+    expect(pp[2]).toBe('ALLG;ALLG-P02;Keller;Sind die Kellerräume beheizt? Heizkörper oder offene Leitungen?;text;;;;;;nein;;;;;;');
     expect(pp[3]).toMatch(/^EH013;EH013-P01;Wohnraum;/);
   });
 });
@@ -254,7 +264,7 @@ describe('Projekt aus 1.4 öffnen', () => {
     await DB.projektMitAufnahmenSpeichern(alt14, aufn);
     S.projekte = await DB.projekteLaden();
     await projektOeffnen('beispiel', false);
-    expect(S.projekt!.gelesen_mit).toBe('1.5.0');
+    expect(S.projekt!.gelesen_mit).toBe(APP_VERSION);
     expect(S.aufnahmen.get('ALLG')!.pruefpunkte).toHaveLength(2);
     expect(S.aufnahmen.get('EH013')!.raeume[2].heizlast_w).toBe(1209);
     expect(S.aufnahmen.get('EH013')!.notiz).toBe('bleibt');
