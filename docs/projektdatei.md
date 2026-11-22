@@ -32,7 +32,11 @@ dem iPad über „Projektdatei (JSON) laden“ aus OneDrive geöffnet.
       "hinweis": "Räume gelten auch für die Ersatzwohnungen.",
       "raeume": [
         { "id": "EH013-R03", "nr": "03", "name": "Wohnraum", "nutzung": "wohnen",
-          "flaeche_plan_m2": 26.6, "soll_temp_c": 20, "quelle": "Grundriss" }
+          "flaeche_plan_m2": 26.6, "soll_temp_c": 20, "quelle": "Grundriss", "heizlast_w": 1209 }
+      ],
+      "pruefpunkte": [
+        { "id": "EH013-P01", "ort": "Wohnraum", "text": "Fenster erneuert? Baujahr am Glasstempel",
+          "typ": "text", "einheit": null, "wirkung": "U-Wert Fenster", "quelle": "iSFP" }
       ]
     }
   ]
@@ -52,11 +56,13 @@ dem iPad über „Projektdatei (JSON) laden“ aus OneDrive geöffnet.
 | `einheiten[].termin`, `dauer_min` | `JJJJ-MM-TTTHH:MM`, Minuten | Liste nach Tag gruppiert, nach Termin sortiert; gleiche Uhrzeit in Reihenfolge der Datei |
 | `einheiten[].ersatz[]` | Ersatzwohnungen `{ eh, bezeichnung, geschoss }` | Auswahl in der Einheit, siehe unten |
 | `einheiten[].hinweis` | optionaler Text | gut sichtbar oben in der Einheit |
-| `raeume[].id` | `<Einheit-ID>-R<NN>`, im ganzen Projekt eindeutig | Schlüssel für Einspielen und Export (`raum_id`) |
+| `raeume[].id` | im ganzen Projekt eindeutig, nur `A-Z a-z 0-9 -`. Seit Fassung 2 die ID des Rechenmodells (z. B. `ALLG-E01`, `ALLG-R01` in Einheit `ALLG-1OG`); das Muster `<Einheit-ID>-R<NN>` ist nicht mehr verbindlich | Schlüssel für Einspielen und Export (`raum_id`) |
 | `raeume[].nutzung` | `key` aus `nutzungsarten` | vor Ort änderbar |
 | `raeume[].flaeche_plan_m2` | Zahl oder `null` | `null` wird als „Fläche lt. Plan: –“ angezeigt, nicht als 0; im Export leer |
 | `raeume[].soll_temp_c` | Zahl oder `null` | `null` wird als „–“ angezeigt; im Export leer |
 | `raeume[].quelle` | Herkunft der Plandaten | klein unter dem Raumnamen; nicht im Export |
+| `raeume[].heizlast_w` (seit 1.5.0) | Norm-Heizlast aus der Vorberechnung in W, Zahl oder `null` (unbeheizt), kann negativ sein | im Raum klein unter der Fläche: „Heizlast lt. Vorberechnung: 1.209 W (vorläufig)“, negativ „kein Wärmebedarf (Innenraum)“, `null` ohne Anzeige; Summe in der Raumliste. Nur Anzeige, keine eigene Berechnung, nicht im Export |
+| `einheiten[].pruefpunkte[]` (seit 1.5.0) | `{ id, ort, text, typ: "text" \| "zahl", einheit: "m" \| null, wirkung, quelle }`, `id` im Projekt eindeutig, nur `A-Z a-z 0-9 -` | einklappbare Liste „Prüfpunkte 2/4“ unter dem Hinweis der Einheit (auch Heizzentrale). Antwort ja/nein/unklar, bei `typ = "zahl"` Wert mit Einheit und gemessen/geschätzt, Notiz, Fotos, „erledigt“. `quelle` nur intern |
 
 ## Ersatzwohnung
 Bei Wohnungen gilt die Raumliste auch für die Ersatzwohnungen. Wird in der Einheit eine Ersatzwohnung gewählt,
@@ -69,7 +75,8 @@ bleibt die Raumliste gleich. Es ändern sich nur `aufgenommen_eh` und `aufgenomm
   Einheit-ID, doppelte Raum-ID.
 - **Warnungen** (Datei wird geladen, Meldung nach dem Laden und in der Einheitenliste): unbekannte
   `schema_version`, unbekannte `art`, Einheit ohne Termin, Raum ohne Nutzung oder mit einer Nutzung, die nicht in
-  `nutzungsarten` steht, Räume in der Heizzentrale.
+  `nutzungsarten` steht, Räume in der Heizzentrale, Prüfpunkt ohne `id` oder mit doppelter `id` (wird übergangen),
+  Prüfpunkt mit unbekanntem `typ` (gilt als `text`).
 
 ## Toleranz
 Ältere Schreibweisen aus Version 1.0 werden weiter gelesen (`projekt_id`, `projekt_name`, `einheit_id`, `raum_id`,
@@ -85,9 +92,22 @@ Einstellungen → „Neuere Projektdatei einspielen“. Zuordnung über Einheit-
 - Name, Nummer, Fläche und Quelle bestehender Räume werden aktualisiert,
 - eine vor Ort geänderte Nutzung bleibt erhalten,
 - eine gewählte Ersatzwohnung bleibt erhalten,
+- `heizlast_w` bestehender Räume wird aktualisiert, die Angaben vor Ort (Keine Heizfläche, lichte Höhe, beheizt vor
+  Ort) bleiben,
+- Prüfpunkte werden über ihre `id` zugeordnet: Antworten bleiben, der Text wird aktualisiert, neue kommen dazu,
+  entfallene **mit** Antwort bleiben und werden als „nicht mehr in der Projektdatei“ markiert, entfallene ohne
+  Antwort werden entfernt,
 - entfallene Räume oder Einheiten **mit** Aufnahmen bleiben erhalten und werden als „nicht mehr im Plan“ markiert,
   entfallene ohne Aufnahmen werden entfernt.
 
+Ein Projekt, das mit Version 1.4 oder älter geladen wurde, liest die App beim ersten Öffnen mit 1.5.0 einmal neu
+aus der gespeicherten Projektdatei ein (wie „Neuere Fassung einspielen“). Damit erscheinen Prüfpunkte und Heizlast,
+die Aufnahmen bleiben erhalten.
+
 ## Automatische Prüfung
-`npm test` prüft die Beispieldatei und zusätzlich jede lokal vorhandene `data/*.objekt.json` (Raum-IDs eindeutig,
-jede Nutzung vorhanden, Heizzentrale ohne Räume, lädt ohne Warnung). Auf GitHub liegt nur die Beispieldatei.
+`npm test` prüft die Beispieldatei und zusätzlich jede lokal vorhandene `data/*.objekt.json` (Raum-IDs und
+Prüfpunkt-IDs eindeutig und nur `A-Z a-z 0-9 -`, jede Nutzung vorhanden, Heizzentrale ohne Räume, `heizlast_w` und
+Prüfpunkte vollständig übernommen, lädt ohne Warnung). Ältere Fassungen unter `data/alt/` werden nicht geprüft.
+Für `ismaninger136.objekt.json` (Fassung 2) zusätzlich: 47 Einheiten, 295 Räume, 168 Prüfpunkte, `ALLG` mit 13
+Räumen und 12 Prüfpunkten, Freitag Heizzentrale/`ALLG`/Gewerbe, Samstag Wohnungen und `ALLG-1OG` bis `ALLG-4OG`.
+Auf GitHub liegt nur die Beispieldatei.

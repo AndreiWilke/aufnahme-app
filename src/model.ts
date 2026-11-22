@@ -1,7 +1,7 @@
 // Datenmodell der Aufnahme. Entspricht UEBERGABE.md Abschnitt 5 (aufnahme.json, schema_version 1).
 // Feldwerte sind feste Schlüssel; die deutschen Anzeigetexte stehen in den *_TEXT-Tabellen.
 
-export const APP_VERSION = '1.4.0';
+export const APP_VERSION = '1.5.0';
 export const SCHEMA_VERSION = 1;
 
 export type MessStatus = 'gemessen' | 'geschätzt';
@@ -35,6 +35,21 @@ export type Anschluss =
 export type Lage = 'unter_fenster' | 'aussenwand_ohne_fenster' | 'innenwand';
 export type Verglasung = '1-fach' | '2-fach' | '3-fach' | 'unbekannt';
 export type Rahmen = 'kunststoff' | 'holz' | 'holz_alu' | 'alu' | 'unbekannt';
+/** Antwort zum Antippen (Prüfpunkte, Fenster erneuert, Raum beheizt vor Ort). */
+export type Antwort = 'ja' | 'nein' | 'unklar';
+export type FensterArt = 'fenster' | 'fenstertuer' | 'ladenfront' | 'dachfenster';
+
+export const ANTWORTEN: Antwort[] = ['ja', 'nein', 'unklar'];
+
+export const FENSTER_ART_TEXT: Record<FensterArt, string> = {
+  fenster: 'Fenster',
+  fenstertuer: 'Fenstertür',
+  ladenfront: 'Ladenfront',
+  dachfenster: 'Dachfenster',
+};
+
+/** Lichte Raumhöhe in m zum Antippen; jeder andere Wert über „andere“. */
+export const LICHTE_HOEHEN = [2.4, 2.5, 2.55, 2.6, 2.8, 3.0];
 
 export const STATUS_TEXT: Record<EinheitStatus, string> = {
   offen: 'offen',
@@ -167,6 +182,12 @@ export interface Fenster {
   hoehe_mm: number | null;
   /** Ergänzung zu Abschnitt 5: Datenstatus der Fenstermaße (Breite und Höhe). */
   masse_status: MessStatus | null;
+  /** Seit 1.5.0. Fehlt bei älteren Aufnahmen (gilt dann als null). */
+  art?: FensterArt | null;
+  erneuert?: Antwort | null;
+  /** Baujahr, z. B. vom Glasstempel im Scheibenzwischenraum. */
+  baujahr?: number | null;
+  /** Fotos „Fenster“ und „Glasstempel“ (am Dateinamen zu unterscheiden). */
   fotos: string[];
   geaendert_am: string | null;
 }
@@ -180,12 +201,20 @@ export interface Raum {
   soll_temp_c: number | null;
   /** Herkunft der Plandaten laut Projektdatei (nur Anzeige, nicht im Export). */
   quelle?: string;
+  /** Norm-Heizlast laut Vorberechnung in W (Projektdatei, nur Anzeige). null bei unbeheizten Räumen, kann negativ sein. */
+  heizlast_w?: number | null;
   herkunft: RaumHerkunft;
   zustand: RaumZustand;
   erledigt: boolean;
   notiz: string;
   heizflaechen: Heizflaeche[];
   fenster: Fenster[];
+  /** Seit 1.5.0: vor Ort bestätigt, dass der Raum keine Heizfläche hat. Fehlt bei älteren Aufnahmen (= false). */
+  keine_heizflaeche?: boolean;
+  /** Seit 1.5.0: lichte Raumhöhe in m mit Datenstatus. */
+  lichte_hoehe_m?: Messwert;
+  /** Seit 1.5.0: Wird der Raum vor Ort beheizt? */
+  beheizt_vor_ort?: Antwort | null;
   /** true, wenn der Raum in einer neueren Projektdatei nicht mehr vorkommt, aber Aufnahmen hat. */
   im_plan_entfallen?: boolean;
   /** Nutzung laut Projektdatei, um beim Einspielen eine geänderte Nutzung nicht zu überschreiben. */
@@ -221,6 +250,22 @@ export interface Heizzentrale {
   geaendert_am: string | null;
 }
 
+/** Antwort zu einem Prüfpunkt der Projektdatei (einheiten[].pruefpunkte[]). Zuordnung über id. */
+export interface Pruefpunkt {
+  id: string;
+  /** Text laut Projektdatei (wird beim Einspielen aktualisiert). */
+  text: string;
+  antwort: Antwort | null;
+  /** Nur bei typ „zahl“ belegt. */
+  wert: Messwert;
+  notiz: string;
+  fotos: string[];
+  erledigt: boolean;
+  /** true, wenn der Prüfpunkt in einer neueren Projektdatei fehlt, aber Antworten hat. */
+  im_plan_entfallen?: boolean;
+  geaendert_am: string | null;
+}
+
 export interface Gewerbe {
   nutzungszeiten: string;
   soll_temp_c: number | null;
@@ -241,6 +286,8 @@ export interface EinheitAufnahme {
   zeit_ende: string | null;
   raeume: Raum[];
   heizzentrale: Heizzentrale | null;
+  /** Seit 1.5.0. Fehlt bei älteren Aufnahmen (gilt dann als leer). */
+  pruefpunkte?: Pruefpunkt[];
   /** Höchster vergebener Fotozähler je Dateinamen-Präfix, damit Namen nie doppelt vergeben werden. */
   foto_zaehler: Record<string, number>;
   /** true, wenn die Einheit in einer neueren Projektdatei fehlt, aber Aufnahmen hat. */
@@ -271,6 +318,18 @@ export interface PlanRaum {
   flaeche_plan_m2: number | null;
   soll_temp_c: number | null;
   quelle?: string;
+  heizlast_w?: number | null;
+}
+
+/** Prüfpunkt laut Projektdatei. */
+export interface PlanPruefpunkt {
+  id: string;
+  ort: string;
+  text: string;
+  typ: 'text' | 'zahl';
+  einheit: string | null;
+  wirkung: string;
+  quelle: string;
 }
 
 export interface PlanEinheit {
@@ -287,6 +346,7 @@ export interface PlanEinheit {
   eh_zusatz?: number[];
   wohnungstyp?: number | null;
   dauer_min?: number | null;
+  pruefpunkte?: PlanPruefpunkt[];
 }
 
 export interface Projekt {
@@ -303,6 +363,8 @@ export interface Projekt {
   stand?: string;
   /** Auffälligkeiten beim Einlesen. Eine Datei im verbindlichen Format erzeugt keine. */
   warnungen?: string[];
+  /** App-Version, mit der die Projektdatei gelesen wurde. Fehlt bis 1.4 (dann wird beim Öffnen neu gelesen). */
+  gelesen_mit?: string;
 }
 
 // ---------------- Fotos ----------------
@@ -314,7 +376,9 @@ export type FotoRolle =
   | 'Weitere'
   | 'Fenster'
   | 'Raum'
-  | 'HZ';
+  | 'HZ'
+  | 'Glasstempel'
+  | 'Pruefpunkt';
 
 export interface FotoMeta {
   foto_id: string;
@@ -322,7 +386,7 @@ export interface FotoMeta {
   einheit_id: string;
   dateiname: string;
   rolle: FotoRolle;
-  /** hf_id, fenster_id, raum_id, punkt_id oder abgang_id */
+  /** hf_id, fenster_id, raum_id, punkt_id, abgang_id oder Prüfpunkt-id */
   bezug_id: string;
   groesse: number;
   breite: number;

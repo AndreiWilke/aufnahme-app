@@ -6,11 +6,13 @@ import type {
   Nutzungsart,
   PlanEinheit,
   PlanErsatz,
+  PlanPruefpunkt,
   PlanRaum,
   Projekt,
+  Pruefpunkt,
   Raum,
 } from './model';
-import { HZ_PUNKTE } from './model';
+import { APP_VERSION, HZ_PUNKTE } from './model';
 import { isoJetzt } from './util';
 
 export class ProjektdateiFehler extends Error {}
@@ -132,6 +134,7 @@ function raumLesen(r: Obj, einheit_id: string, index: number, nutzungen: Nutzung
     ? num(r, 'soll_temp_c', 'solltemperatur')
     : (nutzungen.find((n) => n.schluessel === nutzung)?.soll_temp_c ?? null);
   const quelle = str(r, 'quelle');
+  const heizlast = num(r, 'heizlast_w');
   return {
     raum_id,
     nr,
@@ -140,6 +143,32 @@ function raumLesen(r: Obj, einheit_id: string, index: number, nutzungen: Nutzung
     flaeche_plan_m2: num(r, 'flaeche_plan_m2', 'flaeche_m2', 'flaeche'),
     soll_temp_c: soll,
     ...(quelle ? { quelle } : {}),
+    ...('heizlast_w' in r ? { heizlast_w: heizlast } : {}),
+  };
+}
+
+function pruefpunktLesen(o: Obj, einheit_id: string, ids: Set<string>, warnungen: string[]): PlanPruefpunkt | null {
+  const id = str(o, 'id');
+  if (!id) {
+    warnungen.push(`Einheit ${einheit_id}: Prüfpunkt ohne „id“ übergangen.`);
+    return null;
+  }
+  if (ids.has(id)) {
+    warnungen.push(`Einheit ${einheit_id}: Prüfpunkt „${id}“ kommt doppelt vor, nur der erste gilt.`);
+    return null;
+  }
+  ids.add(id);
+  const typRoh = str(o, 'typ');
+  if (typRoh && typRoh !== 'text' && typRoh !== 'zahl')
+    warnungen.push(`Prüfpunkt ${id}: Typ „${typRoh}“ unbekannt, als „text“ behandelt.`);
+  return {
+    id,
+    ort: str(o, 'ort'),
+    text: str(o, 'text') || id,
+    typ: typRoh === 'zahl' ? 'zahl' : 'text',
+    einheit: str(o, 'einheit') || null,
+    wirkung: str(o, 'wirkung'),
+    quelle: str(o, 'quelle'),
   };
 }
 
@@ -176,6 +205,7 @@ export function projektdateiLesen(roh: unknown): Projekt {
 
   const ids = new Set<string>();
   const raumIds = new Set<string>();
+  const pruefIds = new Set<string>();
   const einheiten: PlanEinheit[] = einheitenRoh.map((e, i) => {
     if (!istObj(e)) throw new ProjektdateiFehler(`Einheit Nr. ${i + 1} ist kein Objekt.`);
     const einheit_id = str(e, 'id', 'einheit_id');
@@ -200,6 +230,10 @@ export function projektdateiLesen(roh: unknown): Projekt {
     if (art === 'heizzentrale' && raeume.length > 0)
       warnungen.push(`Einheit ${einheit_id}: Räume der Heizzentrale werden nicht verwendet (dort gilt die Checkliste).`);
     const zusatz = arr(e, 'eh_zusatz').filter((x): x is number => typeof x === 'number');
+    const pruefpunkte = arr(e, 'pruefpunkte')
+      .filter(istObj)
+      .map((o) => pruefpunktLesen(o, einheit_id, pruefIds, warnungen))
+      .filter((x): x is PlanPruefpunkt => x !== null);
     return {
       einheit_id,
       eh: num(e, 'eh', 'einheit_nr'),
@@ -216,6 +250,7 @@ export function projektdateiLesen(roh: unknown): Projekt {
       eh_zusatz: zusatz,
       wohnungstyp: num(e, 'wohnungstyp'),
       dauer_min: num(e, 'dauer_min'),
+      pruefpunkte,
     };
   });
 
@@ -229,6 +264,7 @@ export function projektdateiLesen(roh: unknown): Projekt {
     hinweis: str(meta, 'hinweis') || str(roh, 'hinweis'),
     stand: str(meta, 'stand'),
     warnungen,
+    gelesen_mit: APP_VERSION,
   };
 }
 
@@ -259,14 +295,37 @@ function raumAusPlan(p: PlanRaum): Raum {
     flaeche_plan_m2: p.flaeche_plan_m2,
     soll_temp_c: p.soll_temp_c,
     ...(p.quelle ? { quelle: p.quelle } : {}),
+    heizlast_w: p.heizlast_w ?? null,
     herkunft: 'plan',
     zustand: 'vorhanden',
     erledigt: false,
     notiz: '',
     heizflaechen: [],
     fenster: [],
+    keine_heizflaeche: false,
+    lichte_hoehe_m: { wert: null, status: null },
+    beheizt_vor_ort: null,
     geaendert_am: null,
   };
+}
+
+export function pruefpunktAusPlan(p: PlanPruefpunkt): Pruefpunkt {
+  return {
+    id: p.id,
+    text: p.text,
+    antwort: null,
+    wert: { wert: null, status: null },
+    notiz: '',
+    fotos: [],
+    erledigt: false,
+    geaendert_am: null,
+  };
+}
+
+export function pruefpunktHatAntwort(q: Pruefpunkt): boolean {
+  return (
+    q.antwort !== null || q.wert.wert !== null || q.notiz.trim() !== '' || q.fotos.length > 0 || q.erledigt || q.geaendert_am !== null
+  );
 }
 
 export function neueAufnahme(projekt_id: string, p: PlanEinheit): EinheitAufnahme {
@@ -283,6 +342,7 @@ export function neueAufnahme(projekt_id: string, p: PlanEinheit): EinheitAufnahm
     zeit_ende: null,
     raeume: p.art === 'heizzentrale' ? [] : p.raeume.map(raumAusPlan),
     heizzentrale: p.art === 'heizzentrale' ? neueHeizzentrale() : null,
+    pruefpunkte: (p.pruefpunkte ?? []).map(pruefpunktAusPlan),
     foto_zaehler: {},
     geaendert_am: null,
     letzter_export: null,
@@ -296,18 +356,22 @@ export function raumHatAufnahmen(r: Raum): boolean {
     r.erledigt ||
     r.notiz.trim() !== '' ||
     r.zustand !== 'vorhanden' ||
+    r.keine_heizflaeche === true ||
+    (r.beheizt_vor_ort ?? null) !== null ||
+    (r.lichte_hoehe_m?.wert ?? null) !== null ||
     r.geaendert_am !== null
   );
 }
 
 export function einheitHatAufnahmen(a: EinheitAufnahme): boolean {
-  return a.geaendert_am !== null || a.raeume.some(raumHatAufnahmen);
+  return a.geaendert_am !== null || a.raeume.some(raumHatAufnahmen) || (a.pruefpunkte ?? []).some(pruefpunktHatAntwort);
 }
 
 export interface EinspielErgebnis {
   aufnahmen: EinheitAufnahme[];
   neueEinheiten: number;
   neueRaeume: number;
+  neuePruefpunkte: number;
   entfalleneRaeumeBehalten: number;
   entfalleneEinheitenBehalten: number;
 }
@@ -322,6 +386,7 @@ export function projektEinspielen(neu: Projekt, vorhandene: EinheitAufnahme[]): 
   const ergebnis: EinheitAufnahme[] = [];
   let neueEinheiten = 0;
   let neueRaeume = 0;
+  let neuePruefpunkte = 0;
   let entfalleneRaeumeBehalten = 0;
   let entfalleneEinheitenBehalten = 0;
 
@@ -360,6 +425,7 @@ export function projektEinspielen(neu: Projekt, vorhandene: EinheitAufnahme[]): 
         r.flaeche_plan_m2 = pr.flaeche_plan_m2;
         if (pr.quelle) r.quelle = pr.quelle;
         else delete r.quelle;
+        r.heizlast_w = pr.heizlast_w ?? null;
         if (!nutzungVorOrtGeaendert) {
           r.nutzung = pr.nutzung;
           r.soll_temp_c = pr.soll_temp_c;
@@ -381,6 +447,29 @@ export function projektEinspielen(neu: Projekt, vorhandene: EinheitAufnahme[]): 
       }
       a.raeume = raeume;
     }
+
+    // Prüfpunkte: gleiche Regeln wie bei Räumen, Zuordnung über id.
+    const ppAlt = new Map((a.pruefpunkte ?? []).map((q) => [q.id, q]));
+    const pp: Pruefpunkt[] = [];
+    for (const d of pe.pruefpunkte ?? []) {
+      const q = ppAlt.get(d.id);
+      ppAlt.delete(d.id);
+      if (!q) {
+        pp.push(pruefpunktAusPlan(d));
+        neuePruefpunkte++;
+        continue;
+      }
+      q.text = d.text;
+      delete q.im_plan_entfallen;
+      pp.push(q);
+    }
+    for (const q of ppAlt.values()) {
+      if (pruefpunktHatAntwort(q)) {
+        q.im_plan_entfallen = true;
+        pp.push(q);
+      }
+    }
+    a.pruefpunkte = pp;
     ergebnis.push(a);
   }
 
@@ -393,5 +482,5 @@ export function projektEinspielen(neu: Projekt, vorhandene: EinheitAufnahme[]): 
     }
   }
 
-  return { aufnahmen: ergebnis, neueEinheiten, neueRaeume, entfalleneRaeumeBehalten, entfalleneEinheitenBehalten };
+  return { aufnahmen: ergebnis, neueEinheiten, neueRaeume, neuePruefpunkte, entfalleneRaeumeBehalten, entfalleneEinheitenBehalten };
 }

@@ -41,7 +41,11 @@
       "geschoss": null, "wohnungstyp": null, "ersatz": [], "termin": "2026-12-04T08:30", "dauer_min": 0,
       "hinweis": "Beheizung der Nebenräume vor Ort prüfen.",
       "raeume": [
-        { "id": "ALLG-R01", "nr": "01", "name": "Treppenhaus 1", "nutzung": "treppenhaus", "flaeche_plan_m2": null, "soll_temp_c": 10, "quelle": "Beispielplan, vor Ort prüfen" }
+        { "id": "ALLG-R01", "nr": "01", "name": "Treppenhaus 1", "nutzung": "treppenhaus", "flaeche_plan_m2": null, "soll_temp_c": 10, "quelle": "Beispielplan, vor Ort prüfen", "heizlast_w": null }
+      ],
+      "pruefpunkte": [
+        { "id": "ALLG-P01", "ort": "Treppenhaus 1", "text": "Lichte Raumhöhe im Treppenhaus messen", "typ": "zahl", "einheit": "m", "wirkung": "Raumvolumen, Lüftungswärmeverlust", "quelle": "Beispiel" },
+        { "id": "ALLG-P02", "ort": "Keller", "text": "Sind die Kellerräume beheizt? Heizkörper oder offene Leitungen?", "typ": "text", "einheit": null, "wirkung": "Temperatur der Nachbarräume", "quelle": "Beispiel" }
       ]
     },
     {
@@ -71,10 +75,13 @@
         { "eh": 23, "bezeichnung": "Whg. 313", "geschoss": "3. OG" }
       ],
       "hinweis": "Räume gelten auch für die Ersatzwohnungen (gleich oder gespiegelt). Balkon nicht aufgenommen.",
+      "pruefpunkte": [
+        { "id": "EH013-P01", "ort": "Wohnraum", "text": "Fenster erneuert? Baujahr am Glasstempel ablesen", "typ": "text", "einheit": null, "wirkung": "U-Wert Fenster", "quelle": "Beispiel" }
+      ],
       "raeume": [
-        { "id": "EH013-R01", "nr": "01", "name": "Diele", "nutzung": "diele", "flaeche_plan_m2": 7.9, "soll_temp_c": 20, "quelle": "Beispielplan" },
-        { "id": "EH013-R02", "nr": "02", "name": "Küche", "nutzung": "kueche", "flaeche_plan_m2": 9.6, "soll_temp_c": 20, "quelle": "Beispielplan" },
-        { "id": "EH013-R03", "nr": "03", "name": "Wohnraum", "nutzung": "wohnen", "flaeche_plan_m2": 31.4, "soll_temp_c": 20, "quelle": "Beispielplan" },
+        { "id": "EH013-R01", "nr": "01", "name": "Diele", "nutzung": "diele", "flaeche_plan_m2": 7.9, "soll_temp_c": 20, "quelle": "Beispielplan", "heizlast_w": -42 },
+        { "id": "EH013-R02", "nr": "02", "name": "Küche", "nutzung": "kueche", "flaeche_plan_m2": 9.6, "soll_temp_c": 20, "quelle": "Beispielplan", "heizlast_w": 512 },
+        { "id": "EH013-R03", "nr": "03", "name": "Wohnraum", "nutzung": "wohnen", "flaeche_plan_m2": 31.4, "soll_temp_c": 20, "quelle": "Beispielplan", "heizlast_w": 1209 },
         { "id": "EH013-R04", "nr": "04", "name": "Schlafen", "nutzung": "schlafen", "flaeche_plan_m2": 14.2, "soll_temp_c": 20, "quelle": "Beispielplan" },
         { "id": "EH013-R05", "nr": "05", "name": "Kind", "nutzung": "kind", "flaeche_plan_m2": 11.8, "soll_temp_c": 20, "quelle": "Beispielplan" },
         { "id": "EH013-R06", "nr": "06", "name": "Bad", "nutzung": "bad", "flaeche_plan_m2": 6.1, "soll_temp_c": 24, "quelle": "Beispielplan" }

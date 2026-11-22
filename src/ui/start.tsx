@@ -18,13 +18,16 @@ export async function projektdateiEinlesen(text: string): Promise<string> {
     return 'Abgebrochen.';
   const erg = await projektImportieren(p);
   const raeume = p.einheiten.reduce((s, e) => s + e.raeume.length, 0);
+  const pp = p.einheiten.reduce((s, e) => s + (e.pruefpunkte?.length ?? 0), 0);
+  const ppText = pp ? `, ${pp} Prüfpunkte` : '';
   const w = p.warnungen ?? [];
   const warnText = w.length
     ? ` Warnungen (${w.length}): ${w.slice(0, 5).join(' ')}${w.length > 5 ? ' … Alle Warnungen stehen in den Einstellungen.' : ''}`
     : ' Ohne Warnung geladen.';
-  if (!erg) return `Projekt „${p.name}“ geladen: ${p.einheiten.length} Einheiten, ${raeume} Räume.${warnText}`;
+  if (!erg) return `Projekt „${p.name}“ geladen: ${p.einheiten.length} Einheiten, ${raeume} Räume${ppText}.${warnText}`;
   return (
-    `Neue Fassung eingespielt (${p.einheiten.length} Einheiten, ${raeume} Räume). Neue Einheiten: ${erg.neueEinheiten}, neue Räume: ${erg.neueRaeume}` +
+    `Neue Fassung eingespielt (${p.einheiten.length} Einheiten, ${raeume} Räume${ppText}). Neue Einheiten: ${erg.neueEinheiten}, neue Räume: ${erg.neueRaeume}` +
+    (erg.neuePruefpunkte ? `, neue Prüfpunkte: ${erg.neuePruefpunkte}` : '') +
     (erg.entfalleneRaeumeBehalten ? `, entfallene Räume mit Aufnahmen behalten: ${erg.entfalleneRaeumeBehalten}` : '') +
     (erg.entfalleneEinheitenBehalten ? `, entfallene Einheiten mit Aufnahmen behalten: ${erg.entfalleneEinheitenBehalten}` : '') +
     `.${warnText}`

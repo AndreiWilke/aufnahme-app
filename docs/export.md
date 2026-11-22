@@ -5,8 +5,8 @@ für das ganze Projekt, jeweils „neu seit letztem Export“ (delta) oder „ko
 
 ## Inhalt
 - `aufnahme.json` – Schema aus UEBERGABE.md Abschnitt 5 (`schema_version: 1`)
-- `einheiten.csv`, `raeume.csv`, `heizflaechen.csv`, `fenster.csv`, `heizzentrale.csv` – UTF-8 mit BOM,
-  Semikolon, Dezimalkomma, `ja`/`nein`
+- `einheiten.csv`, `raeume.csv`, `heizflaechen.csv`, `fenster.csv`, `heizzentrale.csv`, `pruefpunkte.csv` (seit
+  1.5.0) – UTF-8 mit BOM, Semikolon, Dezimalkomma, `ja`/`nein`
 - `fotos/<einheit_id>/<dateiname>.jpg` – 2560 px lange Kante, JPEG 0,82; ZIP mit UTF-8-Flag
 
 ## Delta-Export
@@ -48,6 +48,59 @@ Die Felder aus Abschnitt 5 sind unverändert. Zusätzlich:
 `rohrmaterial`, `schlammabscheider`, `entlueftung`, `druckhaltung`, `strangventile` (Text = Fabrikat),
 `trinkwasser` (Text = Art, Wert = Speichergröße in Liter).
 
+## Ergänzungen 1.5.0
+Nur ergänzt, kein bestehendes Feld, keine Spalte und kein Fotoname umbenannt; Delta-Logik unverändert.
+`schema_version` bleibt 1. Ältere Aufnahmen ohne die neuen Angaben exportieren `false` bzw. `null`.
+
+### Prüfpunkte je Einheit
+`aufnahme.json`, je Einheit nach `heizzentrale`:
+```json
+"pruefpunkte": [
+  { "id": "ALLG-P02", "text": "MESSUNG: lichte Raumhöhe je Geschoss …", "antwort": "ja",
+    "wert": { "wert": 2.55, "status": "gemessen" }, "notiz": "", "fotos": ["ALLG_P02_01.jpg"],
+    "erledigt": true, "geaendert_am": "…" }
+]
+```
+| Feld | Werte |
+|---|---|
+| `id`, `text` | aus der Projektdatei (`text` in der Fassung, die zuletzt eingespielt wurde) |
+| `antwort` | `ja`, `nein`, `unklar` oder `null` |
+| `wert` | `{ wert, status }`, nur bei `typ = "zahl"` belegt, sonst `{ "wert": null, "status": null }`; Einheit laut Projektdatei |
+| `notiz`, `fotos`, `erledigt`, `geaendert_am` | wie bei den übrigen Objekten |
+
+Alle Prüfpunkte der Einheit stehen im Export, auch unbeantwortete. Ein Prüfpunkt, der in einer neueren
+Projektdatei fehlt, aber Antworten hat, bleibt mit seiner `id` im Export.
+
+`pruefpunkte.csv`, eine Zeile je Prüfpunkt:
+`einheit_id;pruefpunkt_id;ort;text;typ;antwort;wert;wert_einheit;status;notiz;erledigt;fotos;geaendert_am`
+(`ort`, `typ` und `wert_einheit` aus der Projektdatei, zum Lesen ohne Projektdatei).
+
+Fotos: `<Einheit-ID>_<Prüfpunkt-ID ohne Einheit>_01.jpg`, z. B. `ALLG_P03_01.jpg`, `ALLG-1OG_P02_01.jpg`,
+`EH051_P01_01.jpg`. Bei Wohnungen steht hier die Einheit-ID, nicht die begangene Ersatzwohnung.
+
+### Raum
+`aufnahme.json`, je Raum vor `geaendert_am`; `raeume.csv`, neue Spalten am Ende:
+
+| JSON | CSV-Spalten | Werte |
+|---|---|---|
+| `keine_heizflaeche` | `keine_heizflaeche` | `true`/`false` (CSV `ja`/`nein`): vor Ort bestätigt, dass der Raum keine Heizfläche hat. Ein Raum ohne Heizfläche mit `keine_heizflaeche = false` ist nicht bestätigt |
+| `lichte_hoehe_m` | `lichte_hoehe_m`, `lichte_hoehe_status` | `{ wert, status }` in m, z. B. `2.55` (CSV `2,55`) |
+| `beheizt_vor_ort` | `beheizt_vor_ort` | `ja`, `nein`, `unklar` oder `null` |
+
+`heizlast_w` wird nur angezeigt und steht nicht im Export (er kommt aus der Projektdatei).
+
+### Fenster
+`aufnahme.json`, je Fenster vor `geaendert_am`; `fenster.csv`, neue Spalten am Ende `art;erneuert;baujahr`:
+
+| Feld | Werte |
+|---|---|
+| `art` | `fenster`, `fenstertuer`, `ladenfront`, `dachfenster` oder `null` |
+| `erneuert` | `ja`, `nein`, `unklar` oder `null` |
+| `baujahr` | Zahl (z. B. `1975`, vom Glasstempel) oder `null` |
+
+Das Foto „Glasstempel“ steht mit den übrigen Fensterfotos in `fotos`, Dateiname
+`<Einheit>_<Raum>_Fenster_Glasstempel_01.jpg`, z. B. `EH013_Whg116_R03-Wohnraum_Fenster_Glasstempel_01.jpg`.
+
 ## Feste Schlüssel
 - `art`: `platte`, `glieder`, `roehren`, `bad`, `konvektor`, `fussbodenheizung`, `sonstiges`
 - `typ`: `10`, `11`, `20`, `21`, `22`, `33`, `unbekannt` (nur bei `platte`, sonst `null`)
@@ -59,6 +112,8 @@ Die Felder aus Abschnitt 5 sind unverändert. Zusätzlich:
 - `zustand` (Raum): `vorhanden`, `nicht_vorhanden`, `zusammengelegt`
 - Datenstatus Messwert: `gemessen`, `geschätzt` (wie in AGENTS.md geschrieben); ohne Wert `null`
 - `gliederzahl` nur bei `glieder` und `roehren`, sonst `null`
+- `antwort` (Prüfpunkt), `erneuert` (Fenster), `beheizt_vor_ort` (Raum): `ja`, `nein`, `unklar`
+- `art` (Fenster): `fenster`, `fenstertuer`, `ladenfront`, `dachfenster`
 
 ## Dateiname
 `Aufnahme_<projekt-id>_<JJJJ-MM-TT_HHMM>_<komplett|delta>_<umfang>.zip`, z. B.

@@ -9,7 +9,7 @@ Abgleich. Kurzregeln: [`AGENTS.md`](AGENTS.md). Die Anforderungen (`UEBERGABE*.m
 ```bash
 npm install
 npm run dev        # Entwicklungsserver (ohne Service Worker)
-npm test           # Tests (Import, Projektdatei-Format, Einspielen, CSV, ZIP)
+npm test           # Tests (Import, Projektdatei-Format, Einspielen, CSV, ZIP, Ergänzungen 1.5.0)
 npm run build      # Build nach dist/ inkl. Service Worker
 npm run preview    # gebaute App lokal ansehen
 ```

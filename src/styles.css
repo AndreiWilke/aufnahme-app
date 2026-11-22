@@ -955,3 +955,89 @@ textarea.eingabe {
     flex-direction: column;
   }
 }
+
+/* ---- Prüfpunkte je Einheit (1.5.0) ---- */
+.pruefpunkte {
+  margin: 0 0 16px;
+}
+.pp-liste-kopf {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 8px 14px;
+  background: var(--flaeche2);
+  border: 1px solid var(--rand);
+  border-radius: var(--radius);
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+.pp-pfeil {
+  width: 20px;
+  color: var(--text2);
+}
+.pp-liste-titel {
+  font-weight: 800;
+  font-size: 1.1rem;
+  flex: 1;
+}
+.pp-kopf {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.pp-haken {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border: 2px solid var(--rand);
+  border-radius: 8px;
+  background: var(--flaeche);
+  font-size: 26px;
+  line-height: 1;
+  color: var(--gruen);
+}
+.pp-haken.aktiv {
+  border-color: var(--gruen);
+  background: rgba(45, 111, 69, 0.1);
+}
+.pp-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+}
+.pp-titel {
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+.pp-unter {
+  font-size: 14px;
+  color: var(--text2);
+}
+/* Heizlast laut Vorberechnung, klein unter der Fläche */
+.raum-heizlast {
+  display: block;
+  font-size: 14px;
+  color: var(--text2);
+  margin-top: 2px;
+}
+.keine-hf {
+  color: var(--gruen);
+  font-weight: 700;
+}
+.knopf.aktiv-gruen {
+  border-color: var(--gruen);
+  color: var(--gruen);
+  background: rgba(45, 111, 69, 0.1);
+  font-weight: 800;
+}

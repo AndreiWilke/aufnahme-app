@@ -3,7 +3,7 @@ import { useEffect, useState } from 'preact/hooks';
 import * as DB from './db';
 import type { EinheitAufnahme, FotoMeta, FotoRolle, PlanEinheit, Projekt } from './model';
 import { fotoVerarbeiten, naechsterDateiname } from './fotos';
-import { neueAufnahme, projektEinspielen, type EinspielErgebnis } from './projekt';
+import { neueAufnahme, projektdateiLesen, projektEinspielen, type EinspielErgebnis } from './projekt';
 import { isoJetzt, uuid } from './util';
 import { fotoNichtExportiert, hatUnexportierteAenderungen } from './export';
 
@@ -130,6 +130,21 @@ export async function starten(): Promise<void> {
 export async function projektOeffnen(projekt_id: string, navigieren = true): Promise<void> {
   const p = S.projekte.find((x) => x.projekt_id === projekt_id);
   if (!p) return;
+  // Bis 1.4 gelesene Projektdateien kannten heizlast_w und pruefpunkte nicht: einmal mit dieser Version neu lesen
+  // und wie eine neuere Fassung einspielen (Aufnahmen bleiben erhalten).
+  if (!p.gelesen_mit && p.objekt_roh) {
+    let neu: Projekt | null = null;
+    try {
+      neu = projektdateiLesen(p.objekt_roh);
+    } catch {
+      neu = null;
+    }
+    if (neu && neu.projekt_id === p.projekt_id) {
+      neu.importiert_am = p.importiert_am;
+      await projektImportieren(neu, navigieren);
+      return;
+    }
+  }
   const [aufnahmen, fotos] = await Promise.all([DB.aufnahmenLaden(projekt_id), DB.fotoMetaLaden(projekt_id)]);
   S.projekt = p;
   S.aufnahmen = new Map(aufnahmen.map((a) => [a.einheit_id, a]));
@@ -297,6 +312,7 @@ export async function fotosEntfernen(eid: string, ids: string[], mitAenderung = 
     r.heizflaechen.forEach(filtern);
     r.fenster.forEach(filtern);
   }
+  (a.pruefpunkte ?? []).forEach(filtern);
   if (a.heizzentrale) {
     a.heizzentrale.punkte.forEach(filtern);
     a.heizzentrale.abgaenge.forEach(filtern);

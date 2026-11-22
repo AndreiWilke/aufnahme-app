@@ -8,8 +8,9 @@ import { aufnahmeJson, csvDateien } from '../src/export';
 import { fotoPraefix, naechsterDateiname } from '../src/fotos';
 import { gruppiertNachTag } from '../src/ui/projekt';
 
-interface RohRaum { id: string; nr: string; nutzung: string; soll_temp_c: number | null; flaeche_plan_m2: number | null }
-interface RohEinheit { id: string; art: string; termin: string; ersatz: { eh: number }[]; raeume: RohRaum[] }
+interface RohRaum { id: string; nr: string; nutzung: string; soll_temp_c: number | null; flaeche_plan_m2: number | null; heizlast_w?: number | null }
+interface RohPruefpunkt { id: string; typ: string; einheit: string | null }
+interface RohEinheit { id: string; art: string; termin: string; ersatz: { eh: number }[]; raeume: RohRaum[]; pruefpunkte?: RohPruefpunkt[] }
 interface RohDatei { nutzungsarten: { key: string; soll_temp_c: number | null }[]; einheiten: RohEinheit[] }
 
 /** Prüfungen, die für jede Projektdatei im verbindlichen Format gelten. */
@@ -21,7 +22,9 @@ function pruefeFormat(roh: RohDatei) {
   const raeume = roh.einheiten.flatMap((e) => e.raeume.map((r) => ({ e, r })));
   const ids = raeume.map((x) => x.r.id);
   expect(new Set(ids).size).toBe(ids.length); // keine doppelte Raum-ID
-  for (const { e, r } of raeume) expect(r.id).toBe(`${e.id}-R${r.nr}`);
+  // Seit Fassung 2 sind Raum-IDs die IDs des Rechenmodells (z. B. ALLG-E01, ALLG-R01 in ALLG-1OG).
+  // Verbindlich ist nur: im Projekt eindeutig, Zeichen A-Z a-z 0-9 -.
+  for (const id of ids) expect(id, `Raum-ID ${id}`).toMatch(/^[A-Za-z0-9-]+$/);
 
   const keys = new Map(roh.nutzungsarten.map((n) => [n.key, n.soll_temp_c]));
   for (const { r } of raeume) {
@@ -34,6 +37,17 @@ function pruefeFormat(roh: RohDatei) {
   expect(gelesen.map((r) => r.raum_id)).toEqual(ids);
   expect(gelesen.map((r) => r.flaeche_plan_m2)).toEqual(raeume.map((x) => x.r.flaeche_plan_m2));
   expect(gelesen.map((r) => r.soll_temp_c)).toEqual(raeume.map((x) => x.r.soll_temp_c));
+  expect(gelesen.map((r) => r.heizlast_w ?? null)).toEqual(raeume.map((x) => x.r.heizlast_w ?? null));
+
+  // Prüfpunkte: IDs eindeutig mit erlaubten Zeichen, Typ text oder zahl, alle übernommen.
+  const pp = roh.einheiten.flatMap((e) => e.pruefpunkte ?? []);
+  const ppIds = pp.map((q) => q.id);
+  expect(new Set(ppIds).size).toBe(ppIds.length);
+  for (const q of pp) {
+    expect(q.id, `Prüfpunkt-ID ${q.id}`).toMatch(/^[A-Za-z0-9-]+$/);
+    expect(['text', 'zahl']).toContain(q.typ);
+  }
+  expect(p.einheiten.flatMap((e) => (e.pruefpunkte ?? []).map((q) => q.id))).toEqual(ppIds);
   expect(p.nutzungsarten.map((n) => n.schluessel)).toEqual(roh.nutzungsarten.map((n) => n.key));
   expect(p.einheiten.map((e) => `${e.datum}T${e.uhrzeit}`)).toEqual(roh.einheiten.map((e) => e.termin));
   expect(p.einheiten.map((e) => e.art)).toEqual(roh.einheiten.map((e) => e.art.toLowerCase()));
@@ -44,7 +58,8 @@ function pruefeFormat(roh: RohDatei) {
   const aufnahmen = p.einheiten.map((e) => neueAufnahme(p.projekt_id, e));
   expect(aufnahmen.find((a) => a.einheit_id === 'HZ')!.heizzentrale).not.toBeNull();
   expect(aufnahmen.reduce((s, a) => s + a.raeume.length, 0)).toBe(ids.length);
-  return { p, aufnahmen, anzahlRaeume: ids.length };
+  expect(aufnahmen.reduce((s, a) => s + (a.pruefpunkte?.length ?? 0), 0)).toBe(pp.length);
+  return { p, aufnahmen, anzahlRaeume: ids.length, anzahlPruefpunkte: pp.length };
 }
 
 describe('Projektdatei im verbindlichen Format', () => {
@@ -76,7 +91,8 @@ describe('Projektdatei im verbindlichen Format', () => {
     // Im Export leer, nicht 0.
     const aufnahmen = p.einheiten.map((e) => neueAufnahme(p.projekt_id, e));
     const zeile = csvDateien(p, aufnahmen)['raeume.csv'].split('\r\n').find((z) => z.includes('EH002-R03'))!;
-    expect(zeile).toBe('EH002;EH002-R03;03;Lüftungszentrale;technik;;;plan;vorhanden;nein;0;0;nein;;');
+    // 1.5.0: neue Spalten am Ende (keine_heizflaeche, lichte_hoehe_m, lichte_hoehe_status, beheizt_vor_ort)
+    expect(zeile).toBe('EH002;EH002-R03;03;Lüftungszentrale;technik;;;plan;vorhanden;nein;0;0;nein;;;nein;;;');
     const json = aufnahmeJson(p, aufnahmen, 'komplett', 'alle', '2026-12-04T10:00:00+01:00');
     const r = json.einheiten.find((e) => e.einheit_id === 'EH002')!.raeume.find((x) => x.raum_id === 'EH002-R03')!;
     expect(r.soll_temp_c).toBeNull();
@@ -166,6 +182,7 @@ describe('Export bleibt unverändert', () => {
 
 // Echte Projektdateien liegen nur lokal (data/*.objekt.json steht in .gitignore).
 // Auf GitHub fehlen sie; dann läuft nur die Beispieldatei.
+// Nur Dateien direkt in data/; ältere Fassungen unter data/alt/ werden nicht geprüft.
 const DATA = join(__dirname, '..', 'data');
 const echte = existsSync(DATA) ? readdirSync(DATA).filter((f) => f.endsWith('.objekt.json') && f !== 'beispiel.objekt.json') : [];
 
@@ -179,15 +196,26 @@ describe.skipIf(echte.length === 0)('Echte Projektdateien (nur lokal)', () => {
   }
 
   const ism = join(DATA, 'ismaninger136.objekt.json');
-  it.skipIf(!existsSync(ism))('ismaninger136: 43 Einheiten, 277 Räume, Termine und Ersatzwohnungen stimmig', () => {
+  it.skipIf(!existsSync(ism))('ismaninger136 Fassung 2: 47 Einheiten, 295 Räume, Termine und Ersatzwohnungen stimmig', () => {
     const roh = JSON.parse(readFileSync(ism, 'utf-8')) as RohDatei;
-    const { p, anzahlRaeume } = pruefeFormat(roh);
-    expect(p.einheiten).toHaveLength(43);
-    expect(anzahlRaeume).toBe(277);
-    for (const e of roh.einheiten) expect(e.termin.slice(0, 10)).toBe(e.art === 'Wohnung' ? '2026-12-05' : '2026-12-04');
+    const { p, anzahlRaeume, anzahlPruefpunkte } = pruefeFormat(roh);
+    expect(p.einheiten).toHaveLength(47);
+    expect(anzahlRaeume).toBe(295);
+    expect(anzahlPruefpunkte).toBe(168);
+    expect(roh.einheiten.find((e) => e.id === 'HZ')!.raeume).toHaveLength(0);
+    // Freitag: Heizzentrale, ALLG und Gewerbe. Samstag: Wohnungen und die Allgemeinflächen je Geschoss (ALLG-1OG …).
+    for (const e of roh.einheiten) {
+      const samstag = e.art === 'Wohnung' || (e.art === 'Allgemein' && e.id !== 'ALLG');
+      expect(e.termin.slice(0, 10), e.id).toBe(samstag ? '2026-12-05' : '2026-12-04');
+    }
     const tage = gruppiertNachTag(p.einheiten);
-    expect(tage.map(([t, l]) => [t, l.length])).toEqual([['2026-12-04', 23], ['2026-12-05', 20]]);
+    expect(tage.map(([t, l]) => [t, l.length])).toEqual([['2026-12-04', 23], ['2026-12-05', 24]]);
     expect(tage[0][1].slice(0, 2).map((e) => e.einheit_id)).toEqual(['HZ', 'ALLG']);
+    for (const id of ['ALLG-1OG', 'ALLG-2OG', 'ALLG-3OG', 'ALLG-4OG'])
+      expect(p.einheiten.find((e) => e.einheit_id === id)?.art, id).toBe('allgemein');
+    const allg = p.einheiten.find((e) => e.einheit_id === 'ALLG')!;
+    expect(allg.raeume).toHaveLength(13);
+    expect(allg.pruefpunkte).toHaveLength(12);
     const ersatz = roh.einheiten.flatMap((e) => e.ersatz.map((x) => x.eh));
     expect(new Set(ersatz).size).toBe(ersatz.length);
   });

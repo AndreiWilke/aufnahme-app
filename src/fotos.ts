@@ -82,12 +82,20 @@ export function raumTeil(nr: string, name: string): string {
   return `R${nr}-${kurz(name, 24)}`;
 }
 
+/** Prüfpunkt-ID ohne vorangestellte Einheit-ID: „ALLG-1OG-P02“ in ALLG-1OG → „P02“. */
+export function pruefpunktKurz(einheit_id: string, id: string): string {
+  const rest = id.startsWith(`${einheit_id}-`) ? id.slice(einheit_id.length + 1) : id;
+  return kurz(rest, 24) || 'P';
+}
+
 /** Präfix ohne laufende Nummer, z. B. EH010_Whg212_R03-Wohnraum_HK1_Ventil */
 export function fotoPraefix(
   a: EinheitAufnahme,
   ziel:
     | { art: 'hf'; raumNr: string; raumName: string; hfNr: number; rolle: FotoRolle }
     | { art: 'fenster'; raumNr: string; raumName: string }
+    | { art: 'glasstempel'; raumNr: string; raumName: string }
+    | { art: 'pruefpunkt'; id: string }
     | { art: 'raum'; raumNr: string; raumName: string }
     | { art: 'hz_punkt'; kurz: string }
     | { art: 'hz_abgang'; nr: number; rolle: 'Abgang' | 'Pumpe' | 'Mischer' },
@@ -97,6 +105,11 @@ export function fotoPraefix(
       return `${einheitTeil(a)}_${raumTeil(ziel.raumNr, ziel.raumName)}_HK${ziel.hfNr}_${ziel.rolle}`;
     case 'fenster':
       return `${einheitTeil(a)}_${raumTeil(ziel.raumNr, ziel.raumName)}_Fenster`;
+    case 'glasstempel':
+      return `${einheitTeil(a)}_${raumTeil(ziel.raumNr, ziel.raumName)}_Fenster_Glasstempel`;
+    case 'pruefpunkt':
+      // Übergabe 3: <Einheit-ID>_<Prüfpunkt-ID ohne Einheit>, z. B. ALLG_P03
+      return `${a.einheit_id}_${pruefpunktKurz(a.einheit_id, ziel.id)}`;
     case 'raum':
       return `${einheitTeil(a)}_${raumTeil(ziel.raumNr, ziel.raumName)}_Raum`;
     case 'hz_punkt':

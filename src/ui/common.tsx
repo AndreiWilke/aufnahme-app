@@ -187,12 +187,14 @@ export function MessFeld(props: {
   onAendern: (m: Messwert) => void;
   einheit?: string;
   platzhalter?: string;
+  /** Standard: ganze Zahl. false erlaubt Dezimalstellen (Komma). */
+  ganzzahl?: boolean;
 }) {
   return (
     <div class={`messfeld ${props.wert.status === 'geschätzt' ? 'ist-geschaetzt' : ''}`}>
       <ZahlFeld
         wert={props.wert.wert}
-        ganzzahl
+        ganzzahl={props.ganzzahl !== false}
         einheit={props.einheit}
         platzhalter={props.platzhalter}
         onAendern={(n) =>
@@ -217,6 +219,10 @@ export function WahlMess(props: {
   werte: readonly number[];
   einheit?: string;
   onAendern: (m: Messwert) => void;
+  /** Standard: ganze Zahl. false erlaubt Dezimalstellen (Komma). */
+  ganzzahl?: boolean;
+  /** Beschriftung der Tasten, z. B. 2,55 statt 2.55 */
+  text?: (n: number) => string;
 }) {
   const [offen, setOffen] = useState(false);
   const w = props.wert.wert;
@@ -233,7 +239,7 @@ export function WahlMess(props: {
               props.onAendern(w === b && !andere ? { wert: null, status: null } : { wert: b, status: props.wert.status ?? 'gemessen' });
             }}
           >
-            {b}
+            {props.text ? props.text(b) : b}
           </button>
         ))}
         <button class={`taste andere ${andere ? 'aktiv' : ''}`} onClick={() => setOffen(!andere)}>
@@ -243,7 +249,7 @@ export function WahlMess(props: {
       {andere && (
         <ZahlFeld
           wert={w}
-          ganzzahl
+          ganzzahl={props.ganzzahl !== false}
           autoFokus={offen}
           einheit={props.einheit}
           onAendern={(n) => props.onAendern(n === null ? { wert: null, status: null } : { wert: n, status: props.wert.status ?? 'gemessen' })}

@@ -5,6 +5,7 @@ import { aendern, fotosDerEinheit, gehe, planEinheit, S } from '../store';
 import { Feld, Hinweis, JaNein, Kopf, Tasten, TextFeld, ZahlFeld } from './common';
 import { PlanKnopf } from './plan';
 import { fortschritt } from './projekt';
+import { PruefpunkteListe } from './pruefpunkte';
 
 export function nutzungText(schluessel: string): string {
   return S.projekt?.nutzungsarten.find((n) => n.schluessel === schluessel)?.bezeichnung ?? schluessel;
@@ -22,6 +23,32 @@ export function flaecheText(m2: number | null): string {
 /** „Soll 20 °C“ oder „Soll –“ (z. B. Technikräume ohne Solltemperatur). */
 export function sollText(t: number | null): string {
   return `Soll ${t === null ? '–' : String(t).replace('.', ',') + ' °C'}`;
+}
+
+/** Watt mit Tausenderpunkt: 1209 → „1.209“. */
+export function wattText(w: number): string {
+  return String(Math.round(w)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+/**
+ * „Heizlast lt. Vorberechnung: 1.209 W (vorläufig)“; negativ: „kein Wärmebedarf (Innenraum)“; null: nichts.
+ * Reine Anzeige aus der Projektdatei, keine eigene Berechnung.
+ */
+export function heizlastText(w: number | null | undefined): string {
+  if (w === null || w === undefined) return '';
+  if (w < 0) return 'Heizlast lt. Vorberechnung: kein Wärmebedarf (Innenraum)';
+  return `Heizlast lt. Vorberechnung: ${wattText(w)} W (vorläufig)`;
+}
+
+/** Summe der Heizlast der vorhandenen Räume (null, wenn kein Raum einen Wert hat). */
+export function heizlastSumme(raeume: Raum[]): number | null {
+  const werte = raeume.map((r) => r.heizlast_w).filter((w): w is number => typeof w === 'number');
+  return werte.length ? werte.reduce((s, w) => s + w, 0) : null;
+}
+
+/** Raum mit Wärmebedarf, ohne Heizfläche und ohne „Keine Heizfläche“: wahrscheinlich vergessen. */
+export function heizflaecheFehltVermutlich(r: Raum): boolean {
+  return r.zustand === 'vorhanden' && (r.heizlast_w ?? 0) > 0 && r.heizflaechen.length === 0 && r.keine_heizflaeche !== true;
 }
 
 const STATI: EinheitStatus[] = ['offen', 'in_arbeit', 'fertig', 'nicht_angetroffen'];
@@ -94,6 +121,9 @@ export function RaumHinzufuegen(props: { eid: string; onFertig?: (rid: string) =
                 notiz: '',
                 heizflaechen: [],
                 fenster: [],
+                keine_heizflaeche: false,
+                lichte_hoehe_m: { wert: null, status: null },
+                beheizt_vor_ort: null,
                 geaendert_am: jetzt,
               };
               a.raeume.push(raum);
@@ -133,7 +163,7 @@ function RaumZeile(props: { eid: string; r: Raum }) {
         </span>
       </span>
       <span class="raum-zahlen">
-        {r.heizflaechen.length} HK · {fotos} 📷
+        {r.heizflaechen.length === 0 && r.keine_heizflaeche ? <span class="keine-hf">keine HF</span> : `${r.heizflaechen.length} HK`} · {fotos} 📷
       </span>
     </button>
   );
@@ -153,6 +183,7 @@ export function EinheitSeite(props: { eid: string }) {
   const ersatzGewaehlt = !!pe && a.aufgenommen_bezeichnung !== pe.bezeichnung;
   const vorhanden = a.raeume.filter((r) => r.zustand === 'vorhanden');
   const andere = a.raeume.filter((r) => r.zustand !== 'vorhanden');
+  const summe = heizlastSumme(vorhanden);
 
   return (
     <div>
@@ -169,6 +200,8 @@ export function EinheitSeite(props: { eid: string }) {
             {pe.hinweis}
           </div>
         )}
+
+        <PruefpunkteListe a={a} />
 
         {a.gewerbe && (
           <div class="block gewerbe-kopf">
@@ -228,6 +261,11 @@ export function EinheitSeite(props: { eid: string }) {
         <h2>
           Räume <span class="tag-zaehler">{f.erledigt}/{f.gesamt} erledigt · {f.hk} Heizflächen · {fotoAnzahl} Fotos</span>
         </h2>
+        {summe !== null && (
+          <div class="raum-heizlast">
+            Heizlast lt. Vorberechnung, Summe der Räume: {wattText(summe)} W (vorläufig)
+          </div>
+        )}
         {a.raeume.length === 0 && <Hinweis>Noch keine Räume. Räume vor Ort anlegen.</Hinweis>}
         <div class="liste">
           {vorhanden.map((r) => (

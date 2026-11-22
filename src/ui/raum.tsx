@@ -1,12 +1,27 @@
 import { useEffect, useState } from 'preact/hooks';
 import type { EinheitAufnahme, Fenster, Heizflaeche, Raum, RaumZustand } from '../model';
-import { ART_TEXT, BALKONTUER_STANDARD, FENSTER_BREITEN, FENSTER_HOEHEN, FENSTER_STANDARD, RAHMEN_TEXT, VERGLASUNG_TEXT, ZUSTAND_TEXT } from '../model';
+import {
+  ANTWORTEN,
+  ART_TEXT,
+  BALKONTUER_STANDARD,
+  FENSTER_ART_TEXT,
+  FENSTER_BREITEN,
+  FENSTER_HOEHEN,
+  FENSTER_STANDARD,
+  LICHTE_HOEHEN,
+  RAHMEN_TEXT,
+  VERGLASUNG_TEXT,
+  ZUSTAND_TEXT,
+} from '../model';
 import { aendern, fotosVon, gehe, planEinheit, S } from '../store';
 import { PlanKnopf } from './plan';
 import { fotoPraefix } from '../fotos';
 import { isoJetzt, leerMesswert, uuid } from '../util';
-import { Feld, FotoLeiste, Hinweis, Kopf, StatusSchalter, Tasten, TextFeld, Thumb, WahlZahl, ZahlFeld, fotoZeigen } from './common';
-import { flaecheText, nutzungText, sollTempFuer, sollText } from './einheit';
+import { Feld, FotoLeiste, Hinweis, Kopf, StatusSchalter, Tasten, TextFeld, Thumb, WahlMess, WahlZahl, ZahlFeld, fotoZeigen } from './common';
+import { flaecheText, heizflaecheFehltVermutlich, heizlastText, nutzungText, sollTempFuer, sollText } from './einheit';
+
+/** 2.55 → „2,55“ */
+const meterText = (n: number) => n.toFixed(2).replace('.', ',');
 
 export function neueHeizflaeche(r: Raum, jetzt: string, vorlage?: Heizflaeche): Heizflaeche {
   const nr = r.heizflaechen.reduce((m, h) => Math.max(m, h.nr), 0) + 1;
@@ -43,6 +58,7 @@ export function heizflaecheAnlegenOhneNavigation(eid: string, rid: string, vorla
     const r = a.raeume.find((x) => x.raum_id === rid)!;
     h = neueHeizflaeche(r, jetzt, vorlage);
     r.heizflaechen.push(h);
+    r.keine_heizflaeche = false;
     r.erledigt = false;
     r.geaendert_am = jetzt;
   });
@@ -73,7 +89,7 @@ function leeresFenster(jetzt: string, a?: EinheitAufnahme): Fenster {
     .filter((f) => f.verglasung || f.rahmen)
     .sort((x, y) => (x.geaendert_am ?? '').localeCompare(y.geaendert_am ?? ''))
     .pop();
-  return { fenster_id: uuid(), anzahl: 1, verglasung: letztes?.verglasung ?? null, rahmen: letztes?.rahmen ?? null, breite_mm: null, hoehe_mm: null, masse_status: null, fotos: [], geaendert_am: jetzt };
+  return { fenster_id: uuid(), anzahl: 1, verglasung: letztes?.verglasung ?? null, rahmen: letztes?.rahmen ?? null, breite_mm: null, hoehe_mm: null, masse_status: null, art: null, erneuert: null, baujahr: null, fotos: [], geaendert_am: jetzt };
 }
 
 let zuFenstern = false;
@@ -92,9 +108,20 @@ export function fensterAufnehmen(eid: string, rid: string) {
 }
 
 export function raumFertig(eid: string, rid: string) {
+  const r0 = S.aufnahmen.get(eid)!.raeume.find((x) => x.raum_id === rid)!;
+  let keine = false;
+  if (heizflaecheFehltVermutlich(r0)) {
+    if (!confirm(`Keine Heizfläche erfasst. ${heizlastText(r0.heizlast_w)}.
+
+OK: als „Keine Heizfläche“ abschließen
+Abbrechen: im Raum bleiben`))
+      return;
+    keine = true;
+  }
   aendern(eid, (a, jetzt) => {
     const r = a.raeume.find((x) => x.raum_id === rid)!;
     r.erledigt = true;
+    if (keine) r.keine_heizflaeche = true;
     r.geaendert_am = jetzt;
   });
   const a = S.aufnahmen.get(eid)!;
@@ -127,7 +154,9 @@ function FensterBlock(props: { a: EinheitAufnahme; r: Raum; f: Fenster; index: n
     });
   const masse = f.breite_mm !== null || f.hoehe_mm !== null;
   const [fotoOffen, setFotoOffen] = useState(false);
-  const fotos = fotosVon(a.einheit_id, f.fenster_id);
+  const fotos = fotosVon(a.einheit_id, f.fenster_id, 'Fenster');
+  const stempel = fotosVon(a.einheit_id, f.fenster_id, 'Glasstempel');
+  const [stempelOffen, setStempelOffen] = useState(false);
   /** Maß ändern: Status bleibt erhalten, ohne Maße kein Status. */
   const mass = (fn: (x: Fenster) => void) =>
     set((x) => {
@@ -166,6 +195,9 @@ function FensterBlock(props: { a: EinheitAufnahme; r: Raum; f: Fenster; index: n
           Entfernen
         </button>
       </div>
+      <Feld titel="Art">
+        <Tasten werte={Object.keys(FENSTER_ART_TEXT) as (keyof typeof FENSTER_ART_TEXT)[]} wert={f.art ?? null} text={(w) => FENSTER_ART_TEXT[w]} onWahl={(w) => set((x) => (x.art = w))} />
+      </Feld>
       <Feld titel="Anzahl">
         <div class="reihe">
           <Tasten werte={[1, 2, 3, 4]} wert={f.anzahl} onWahl={(w) => set((x) => (x.anzahl = w))} />
@@ -177,6 +209,33 @@ function FensterBlock(props: { a: EinheitAufnahme; r: Raum; f: Fenster; index: n
       </Feld>
       <Feld titel="Rahmen">
         <Tasten werte={Object.keys(RAHMEN_TEXT) as (keyof typeof RAHMEN_TEXT)[]} wert={f.rahmen} text={(w) => RAHMEN_TEXT[w]} onWahl={(w) => set((x) => (x.rahmen = w))} />
+      </Feld>
+      <Feld titel="Erneuert">
+        <Tasten werte={ANTWORTEN} wert={f.erneuert ?? null} onWahl={(w) => set((x) => (x.erneuert = w))} />
+      </Feld>
+      <Feld titel="Baujahr" hinweis="z. B. vom Glasstempel im Scheibenzwischenraum">
+        <ZahlFeld wert={f.baujahr ?? null} ganzzahl platzhalter="z. B. 1975" onAendern={(n) => set((x) => (x.baujahr = n))} />
+        {stempel.length > 0 || stempelOffen ? (
+          <FotoLeiste
+            titel="Foto Glasstempel"
+            fotos={stempel}
+            ziel={{
+              eid: a.einheit_id,
+              praefix: fotoPraefix(a, { art: 'glasstempel', raumNr: r.nr, raumName: r.name }),
+              rolle: 'Glasstempel',
+              bezug_id: f.fenster_id,
+              eintragen: (au, name, jetzt) => {
+                const x = au.raeume.find((q) => q.raum_id === r.raum_id)!.fenster.find((q) => q.fenster_id === f.fenster_id)!;
+                x.fotos.push(name);
+                x.geaendert_am = jetzt;
+              },
+            }}
+          />
+        ) : (
+          <button class="knopf klein" onClick={() => setStempelOffen(true)}>
+            Foto Glasstempel
+          </button>
+        )}
       </Feld>
       <Feld titel="Standardmaß Breite × Höhe" hinweis="Antippen trägt beide Maße als „geschätzt“ ein. Nach dem Nachmessen unten auf „gemessen“ stellen.">
         <div class="feld-titel klein">Fenster</div>
@@ -252,12 +311,23 @@ export function RaumSeite(props: { eid: string; rid: string }) {
       <Kopf
         titel={`${r.nr} ${r.name}`}
         unter={`${pe?.bezeichnung ?? a.einheit_id}${a.aufgenommen_bezeichnung !== pe?.bezeichnung ? ' → ' + a.aufgenommen_bezeichnung : ''} · ${nutzungText(r.nutzung)} · ${sollText(r.soll_temp_c)}`}
-        zurueck={() => gehe({ name: 'einheit', eid: a.einheit_id })}
+        zurueck={() => {
+          if (
+            heizflaecheFehltVermutlich(r) &&
+            !confirm(`Noch keine Heizfläche erfasst. ${heizlastText(r.heizlast_w)}.
+
+OK: Raum trotzdem verlassen
+Abbrechen: im Raum bleiben (Heizfläche erfassen oder „Keine Heizfläche“ antippen)`)
+          )
+            return;
+          gehe({ name: 'einheit', eid: a.einheit_id });
+        }}
         rechts={<PlanKnopf eid={a.einheit_id} />}
       />
       <main class="inhalt">
         <div class="raum-plan">
           {flaecheText(r.flaeche_plan_m2)} · {sollText(r.soll_temp_c)}
+          {heizlastText(r.heizlast_w) && <span class="raum-heizlast">{heizlastText(r.heizlast_w)}</span>}
           {r.quelle && <div class="raum-quelle">{r.quelle}</div>}
         </div>
         {r.im_plan_entfallen && <Hinweis art="warn">Dieser Raum ist in der aktuellen Projektdatei nicht mehr enthalten. Die Aufnahmen bleiben erhalten.</Hinweis>}
@@ -285,9 +355,23 @@ export function RaumSeite(props: { eid: string; rid: string }) {
             );
           })}
         </div>
-        <button class="knopf gross primaer" onClick={() => heizflaecheAnlegen(a.einheit_id, r.raum_id)}>
-          + Heizfläche
-        </button>
+        <div class="knopfreihe">
+          <button class="knopf gross primaer" onClick={() => heizflaecheAnlegen(a.einheit_id, r.raum_id)}>
+            + Heizfläche
+          </button>
+          {r.heizflaechen.length === 0 && (
+            <button
+              class={`knopf gross ${r.keine_heizflaeche ? 'aktiv-gruen' : ''}`}
+              aria-pressed={r.keine_heizflaeche === true}
+              onClick={() => setRaum((x) => (x.keine_heizflaeche = !x.keine_heizflaeche))}
+            >
+              {r.keine_heizflaeche ? '✓ Keine Heizfläche' : 'Keine Heizfläche'}
+            </button>
+          )}
+        </div>
+        <Feld titel="Beheizt vor Ort">
+          <Tasten werte={ANTWORTEN} wert={r.beheizt_vor_ort ?? null} onWahl={(w) => setRaum((x) => (x.beheizt_vor_ort = w))} />
+        </Feld>
 
         <h2 id="fenster">Fenster</h2>
         {r.fenster.map((f, i) => (
@@ -320,6 +404,16 @@ export function RaumSeite(props: { eid: string; rid: string }) {
                   x.soll_temp_c = sollTempFuer(w);
                 })
               }
+            />
+          </Feld>
+          <Feld titel="Lichte Raumhöhe (m)">
+            <WahlMess
+              werte={LICHTE_HOEHEN}
+              ganzzahl={false}
+              text={meterText}
+              einheit="m"
+              wert={r.lichte_hoehe_m ?? { wert: null, status: null }}
+              onAendern={(m) => setRaum((x) => (x.lichte_hoehe_m = m))}
             />
           </Feld>
           <Feld titel="Zustand">

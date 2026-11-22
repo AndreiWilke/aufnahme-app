@@ -6,6 +6,7 @@ import { uuid } from '../util';
 import { Feld, FotoLeiste, Hinweis, JaNein, Kopf, MessFeld, Tasten, TextFeld } from './common';
 import { statusSetzen } from './einheit';
 import { neueHeizzentrale } from '../projekt';
+import { PruefpunkteListe } from './pruefpunkte';
 
 function PunktBlock(props: { a: EinheitAufnahme; def: HzPunktDef; p: HzPunkt }) {
   const { a, def, p } = props;
@@ -155,6 +156,13 @@ export function HzSeite(props: { eid: string }) {
         <Feld titel="Status">
           <Tasten werte={STATI} wert={a.status} text={(s) => STATUS_TEXT[s]} abwaehlbar={false} onWahl={(s) => s && statusSetzen(a.einheit_id, s)} />
         </Feld>
+        {pe?.hinweis && (
+          <div class="einheit-hinweis">
+            <span class="einheit-hinweis-titel">Hinweis</span>
+            {pe.hinweis}
+          </div>
+        )}
+        <PruefpunkteListe a={a} />
         <Hinweis>Keine Personen fotografieren.</Hinweis>
         {HZ_PUNKTE.slice(0, 1).map((def) => {
           const p = hz.punkte.find((x) => x.punkt_id === def.punkt_id);
